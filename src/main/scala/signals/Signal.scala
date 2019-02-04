@@ -20,9 +20,9 @@ package signals
 import java.util.concurrent.atomic.AtomicBoolean
 
 import threading.CancellableFuture.delayed
-import threading.CancellableFuture
-import com.waz.utils._
+import threading.{CancellableFuture, SerialDispatchQueue, Threading}
 import Events.Subscriber
+import utils.returning
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -56,8 +56,8 @@ object Signal {
 
   def future[A](future: Future[A]): Signal[A] = returning(new Signal[A]) { signal =>
     future.onSuccess {
-      case res => signal.set(Option(res), Some(Threading.Background))
-    } (Threading.Background)
+      case res => signal.set(Option(res), Some(Threading().mainThread))
+    } (Threading().mainThread)
   }
 
   def wrap[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
@@ -108,11 +108,11 @@ class Signal[A](@volatile protected[events] var value: Option[A] = None) extends
 
   private[events] def notifyListeners(currentContext: Option[ExecutionContext]): Unit = super.notifyListeners { _.changed(currentContext) }
 
-  final def currentValue(implicit logTag: LogTag): Option[A] = {
+  final def currentValue: Option[A] = {
     if (!wired) {
-      val prev = value
+      //val prev = value
       disableAutowiring()
-      warn(s"Accessing value of unwired signal: $this, autowiring has been disabled, value was: $prev, is now: $value")(logTag)
+      //warn(s"Accessing value of unwired signal: $this, autowiring has been disabled, value was: $prev, is now: $value")(logTag)
     }
     value
   }
@@ -133,7 +133,7 @@ class Signal[A](@volatile protected[events] var value: Option[A] = None) extends
     override protected[events] def onUnwire(): Unit = self.unsubscribe(this)
   }
 
-  def head(implicit logTag: LogTag): Future[A] = currentValue match {
+  def head: Future[A] = currentValue match {
     case Some(v) => CancellableFuture successful v
     case None =>
       val p = Promise[A]()
@@ -141,7 +141,7 @@ class Signal[A](@volatile protected[events] var value: Option[A] = None) extends
         override def changed(ec: Option[ExecutionContext]): Unit = value foreach p.trySuccess
       }
       subscribe(listener)
-      p.future.onComplete(_ => unsubscribe(listener))(Threading.Background)
+      p.future.onComplete(_ => unsubscribe(listener))(Threading().mainThread)
       value foreach p.trySuccess
       p.future
   }
@@ -154,7 +154,7 @@ class Signal[A](@volatile protected[events] var value: Option[A] = None) extends
   def ifFalse(implicit ev: A =:= Boolean): Signal[Unit] = collect { case false => () }
   def collect[B](pf: PartialFunction[A, B]): Signal[B] = new ProxySignal[B](this) {
     override protected def computeValue(current: Option[B]): Option[B] = self.value flatMap { v =>
-      pf.andThen(Some(_)).applyOrElse(v, { _: A => None })
+      pf.andThen(Option(_)).applyOrElse(v, { _: A => Option.empty[B] })
     }
   }
   def foreach(f: A => Unit)(implicit eventContext: EventContext): Subscription = apply(f)
@@ -216,7 +216,7 @@ final class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extend
 
   override private[events] def notifyListeners(ec: Option[ExecutionContext]): Unit =
     if (waiting.compareAndSet(false, true)) {
-      val context = ec.getOrElse(Threading.Background)
+      val context = ec.getOrElse(Threading().mainThread)
       val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
       delayed(d.millis) {
         lastDispatched = System.currentTimeMillis()
@@ -348,7 +348,7 @@ class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventSt
     val p = Promise[Unit]
     val thisReload = CancellableFuture.lift(p.future)
     loadFuture = thisReload
-    loader.onComplete(t => if (loadFuture eq thisReload) p.tryComplete(t.map(v => set(Some(v), Some(Threading.Background)))))(queue)
+    loader.onComplete(t => if (loadFuture eq thisReload) p.tryComplete(t.map(v => set(Some(v), Some(Threading().mainThread)))))(queue)
   }
 
   override protected def onWire(): Unit = {
@@ -391,19 +391,17 @@ class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends Proxy
 
 
 object RefreshingSignal {
-  private implicit val tag: LogTag = "RefreshingSignal"
-
   def apply[A](loader: => Future[A], refreshEvent: EventStream[_]): RefreshingSignal[A] = new RefreshingSignal(CancellableFuture.lift(loader), refreshEvent)
 }
 
 case class ButtonSignal[A](service: Signal[A], buttonState: Signal[Boolean])(onClick: (A, Boolean) => Unit) extends ProxySignal[Boolean](service, buttonState) {
 
-  def press()(implicit logTag: LogTag): Unit = if (wired) {
+  def press(): Unit = if (wired) {
     (service.value, buttonState.value) match {
       case (Some(s), Some(b)) => onClick(s, b)
-      case _ => warn("ButtonSignal is empty")
+      case _ => //warn("ButtonSignal is empty")
     }
-  } else warn("ButtonSignal not wired")
+  } //else warn("ButtonSignal not wired")
 
   override protected def computeValue(current: Option[Boolean]) = buttonState.value
 }

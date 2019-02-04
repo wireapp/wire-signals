@@ -19,9 +19,9 @@ package signals
 
 import java.util.UUID.randomUUID
 
-import threading.CancellableFuture
+import threading.{CancellableFuture, Serialized, Threading}
 import Events.Subscriber
-import com.waz.utils.{Serialized, returning}
+import utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
@@ -85,7 +85,7 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   def next(implicit context: EventContext): CancellableFuture[E] = {
     val p = Promise[E]()
     val o = apply { p.trySuccess(_) }
-    p.future.onComplete(_ => o.destroy())(Threading.Background)
+    p.future.onComplete(_ => o.destroy())(Threading().mainThread)
     new CancellableFuture(p)
   }
 
@@ -134,8 +134,8 @@ class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V]) extends
     Serialized.future(key)(f(event).andThen {
       case Success(v) => dispatch(v, sourceContext)
       case Failure(t: NoSuchElementException) => // do nothing to allow Future.filter/collect
-      case Failure(t) => error("async map failed", t)
-    }(sourceContext.orElse(executionContext).getOrElse(Threading.Background)))
+      case Failure(t) => // error("async map failed", t)
+    }(sourceContext.orElse(executionContext).getOrElse(Threading().mainThread)))
 }
 
 class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V]) extends ProxyEventStream[E, V](source) {

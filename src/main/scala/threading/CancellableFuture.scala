@@ -17,7 +17,7 @@
  */
 package threading
 
-import java.util.TimerTask
+import signals.{BaseSubscription, EventContext}
 
 import scala.collection.generic.CanBuild
 import scala.concurrent._
@@ -31,8 +31,8 @@ class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] { self =>
   
   val future = promise.future
   
-  def cancel()(implicit tag: LogTag): Boolean =
-    promise.tryFailure(new CancelException(s"[$tag] cancel") with NoReporting) // TODO: switch to DefaultCancelFuture for performance (once this is stable)
+  def cancel(): Boolean =
+    promise.tryFailure(new CancelException(s"cancel")) // TODO: switch to DefaultCancelFuture for performance (once this is stable)
 
   def fail(ex: Exception): Boolean =
     promise.tryFailure(ex)
@@ -51,35 +51,35 @@ class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] { self =>
       case _: CancelException => body
     }
 
-  def map[B](f: A => B)(implicit executor: ExecutionContext, tag: LogTag = "CancellableFuture"): CancellableFuture[B] = {
+  def map[B](f: A => B)(implicit executor: ExecutionContext): CancellableFuture[B] = {
     val p = Promise[B]()
-    @volatile var cancelFunc = Option(self.cancel()(_: LogTag))
+    @volatile var cancelFunc = Option(() => self.cancel())
     future.onComplete { v =>
       cancelFunc = None
       p.tryComplete(v.flatMap(res => Try(f(res))))
     }
     new CancellableFuture(p) {
-      override def cancel()(implicit tag: LogTag): Boolean = {
-        if (super.cancel()(tag)) {
-          Future(cancelFunc.foreach(_.apply(tag)))(CancellableFuture.internalExecutionContext)
+      override def cancel(): Boolean = {
+        if (super.cancel()) {
+          Future(cancelFunc.foreach(_()))(CancellableFuture.internalExecutionContext)
           true
         } else false
       }
     }
   }
 
-  def filter(f: (A) => Boolean)(implicit executor: ExecutionContext, tag: LogTag = "CancellableFuture"): CancellableFuture[A] =
+  def filter(f: (A) => Boolean)(implicit executor: ExecutionContext): CancellableFuture[A] =
     flatMap { res =>
       if (f(res)) CancellableFuture.successful(res)
-      else CancellableFuture.failed(new NoSuchElementException(s"[$tag] CancellableFuture.filter failed"))
+      else CancellableFuture.failed(new NoSuchElementException(s"CancellableFuture.filter failed"))
     }
 
-  final def withFilter(p: A => Boolean)(implicit executor: ExecutionContext, tag: LogTag = "CancellableFuture"): CancellableFuture[A] =
+  final def withFilter(p: A => Boolean)(implicit executor: ExecutionContext): CancellableFuture[A] =
     filter(p)(executor)
 
-  def flatMap[B](f: A => CancellableFuture[B])(implicit executor: ExecutionContext, tag: LogTag = "CancellableFuture"): CancellableFuture[B] = {
+  def flatMap[B](f: A => CancellableFuture[B])(implicit executor: ExecutionContext): CancellableFuture[B] = {
     val p = Promise[B]()
-    @volatile var cancelFunc = Option(self.cancel()(_: LogTag))
+    @volatile var cancelFunc = Option(() => self.cancel())
 
     self.future onComplete { res =>
       cancelFunc = None
@@ -88,12 +88,12 @@ class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] { self =>
         case Success(v) =>
           Try(f(v)) match {
             case Success(fut) =>
-              cancelFunc = Option(fut.cancel()(_: LogTag))
+              cancelFunc = Option(() => fut.cancel())
               fut onComplete { res =>
                 cancelFunc = None
                 p tryComplete res
               }
-              if (p.isCompleted) fut.cancel()(tag)
+              if (p.isCompleted) fut.cancel()
             case Failure(t) =>
               p tryFailure t
           }
@@ -101,39 +101,39 @@ class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] { self =>
     }
 
     new CancellableFuture(p) {
-      override def cancel()(implicit tag: LogTag): Boolean = {
-        if (super.cancel()(tag)) {
-          Future(cancelFunc.foreach(_.apply(tag)))(CancellableFuture.internalExecutionContext)
+      override def cancel(): Boolean = {
+        if (super.cancel()) {
+          Future(cancelFunc.foreach(_()))(CancellableFuture.internalExecutionContext)
           true
         } else false
       }
     }
   }
 
-  def recover[U >: A](pf: PartialFunction[Throwable, U])(implicit executor: ExecutionContext, tag: LogTag = "CancellableFuture") = recoverWith(pf.andThen(CancellableFuture.successful))
+  def recover[U >: A](pf: PartialFunction[Throwable, U])(implicit executor: ExecutionContext) = recoverWith(pf.andThen(CancellableFuture.successful))
 
-  def recoverWith[U >: A](pf: PartialFunction[Throwable, CancellableFuture[U]])(implicit executor: ExecutionContext, tag: LogTag = "CancellableFuture"): CancellableFuture[U] = {
+  def recoverWith[U >: A](pf: PartialFunction[Throwable, CancellableFuture[U]])(implicit executor: ExecutionContext): CancellableFuture[U] = {
     val p = Promise[U]()
-    @volatile var cancelFunc = Option(self.cancel()(_: LogTag))
+    @volatile var cancelFunc = Option(() => self.cancel())
     future.onComplete { res =>
       cancelFunc = None
       if (!p.isCompleted) res match {
         case Failure(t) if pf.isDefinedAt(t) =>
           val fut = pf.applyOrElse(t, (_: Throwable) => this)
-          cancelFunc = Some(fut.cancel()(_: LogTag))
+          cancelFunc = Some(() => fut.cancel())
           fut onComplete { res =>
             cancelFunc = None
             p tryComplete res
           }
-          if (p.isCompleted) fut.cancel()(tag)
+          if (p.isCompleted) fut.cancel()
         case other =>
           p tryComplete other
       }
     }
     new CancellableFuture(p) {
-      override def cancel()(implicit tag: LogTag): Boolean = {
-        if (super.cancel()(tag)) {
-          Future(cancelFunc.foreach(_.apply(tag)))(CancellableFuture.internalExecutionContext)
+      override def cancel(): Boolean = {
+        if (super.cancel()) {
+          Future(cancelFunc.foreach(_()))(CancellableFuture.internalExecutionContext)
           true
         } else false
       }
@@ -157,40 +157,35 @@ class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] { self =>
   override def result(atMost: Duration)(implicit permit: CanAwait): A = future.result(atMost)
 
   // TODO: timeout should generate different exception
-  def withTimeout(timeout: FiniteDuration)(implicit tag: LogTag = "CancellableFuture"): CancellableFuture[A] = {
+  def withTimeout(timeout: FiniteDuration): CancellableFuture[A] = {
     implicit val ec = CancellableFuture.internalExecutionContext
-    val f = CancellableFuture.delayed(timeout)(this.fail(new TimeoutException(s"[$tag] timedOut($timeout)")))
-    onComplete(_ => f.cancel()(tag))
+    val f = CancellableFuture.delayed(timeout)(this.fail(new TimeoutException(s"timedOut($timeout)")))
+    onComplete(_ => f.cancel())
     this
   }
 
   //TODO: think on this possibility
   def withAutoCanceling(implicit eventContext: EventContext): Unit = {
     eventContext.register(new BaseSubscription(WeakReference(eventContext)) {
-      import com.waz.ZLog.ImplicitTag._
       override def onUnsubscribe(): Unit = {
-        verbose("Cancel this future.")
         cancel()
         eventContext.unregister(this)
       }
-      override def onSubscribe(): Unit = {
-        verbose("We are must never reached this point!")
-      }
+      override def onSubscribe(): Unit = {} // should not happen
     })
   }
 
 }
 
 object CancellableFuture {
-
-  private[threading] def internalExecutionContext = Threading.Background
+  private[threading] def internalExecutionContext: ExecutionContext = Threading().mainThread
 
   import language.implicitConversions
   implicit def to_future[A](f: CancellableFuture[A]): Future[A] = f.future
 
   class CancelException(msg: String) extends Exception(msg) with NoStackTrace
 
-  case object DefaultCancelException extends CancelException("Operation cancelled") with NoReporting
+  case object DefaultCancelException extends CancelException("Operation cancelled")
 
   class PromiseCompletingRunnable[T](body: => T) extends Runnable {
     val promise = Promise[T]()
@@ -199,9 +194,9 @@ object CancellableFuture {
       if (!promise.isCompleted) promise.tryComplete(Try(body))
   }
   
-  def apply[A](body: => A)(implicit executor: ExecutionContext, tag: LogTag = ""): CancellableFuture[A] = {
+  def apply[A](body: => A)(implicit executor: ExecutionContext): CancellableFuture[A] = {
     val runnable = new PromiseCompletingRunnable[A](body)
-    executor.execute(DispatchQueueStats(s"CancellableFuture_$tag", runnable))
+    executor.execute(DispatchQueueStats(s"CancellableFuture", runnable))
     new CancellableFuture(runnable.promise)
   }
 
@@ -209,8 +204,8 @@ object CancellableFuture {
     val p = Promise[A]()
     p.tryCompleteWith(future)
     new CancellableFuture(p) {
-      override def cancel()(implicit tag: LogTag): Boolean = {
-        if (super.cancel()(tag)) {
+      override def cancel(): Boolean = {
+        if (super.cancel()) {
           onCancel
           true
         } else false
@@ -222,14 +217,12 @@ object CancellableFuture {
     if (d <= Duration.Zero) successful(())
     else {
       val p = Promise[Unit]()
-      val task = new TimerTask {
-        override def run(): Unit = p.trySuccess(())
-      }
-      Threading.Timer.schedule(task, d.toMillis)
+      val task = Threading().createTask(() => p.trySuccess(()))
+      Threading().timer.schedule(task, d.toMillis)
       new CancellableFuture(p) {
-        override def cancel()(implicit tag: LogTag): Boolean = {
+        override def cancel(): Boolean = {
           task.cancel()
-          super.cancel()(tag)
+          super.cancel()
         }
       }
     }
@@ -238,7 +231,7 @@ object CancellableFuture {
   def timeout(duration: Duration,
               interrupter: Option[CancellableFuture[_]] = None,
               shouldLoop: () => Boolean = () => false)
-             (implicit tag: LogTag, ec: ExecutionContext): CancellableFuture[Unit] = {
+             (implicit ec: ExecutionContext): CancellableFuture[Unit] = {
     if (duration <= Duration.Zero || !interrupter.flatMap(_.future.value).forall(_.isSuccess)) {
       successful(())
     } else {
@@ -256,18 +249,14 @@ object CancellableFuture {
         startNewTimeoutLoop()
 
         private def startNewTimeoutLoop(): Unit = {
-          currentTask = createTask
-          Threading.Timer.schedule(currentTask, duration.toMillis)
-        }
-
-        private def createTask: TimerTask = new TimerTask {
-          override def run(): Unit = {
+          currentTask = Threading().createTask(() => {
             if (shouldLoop()) startNewTimeoutLoop()
             else {
               doCleanup()
               promise.success(())
             }
-          }
+          })
+          Threading().timer.schedule(currentTask, duration.toMillis)
         }
 
         private def doCleanup(): Unit = {
@@ -275,9 +264,9 @@ object CancellableFuture {
           if (currentTask != null) currentTask.cancel() //do not forget to to cancel scheduled task
         }
 
-        override def cancel()(implicit tag: LogTag): Boolean = {
+        override def cancel(): Boolean = {
           doCleanup()
-          super.cancel()(tag)
+          super.cancel()
         }
       }
     }
@@ -320,11 +309,11 @@ object CancellableFuture {
     p.tryCompleteWith((for (r1 <- f1; r2 <- f2) yield (r1, r2)).future)
 
     new CancellableFuture(p) {
-      override def cancel()(implicit tag: LogTag): Boolean = {
-        if (super.cancel()(tag)) {
+      override def cancel(): Boolean = {
+        if (super.cancel()) {
           Future {
-            f1.cancel()(tag)
-            f2.cancel()(tag)
+            f1.cancel()
+            f2.cancel()
           }(CancellableFuture.internalExecutionContext)
           true
         } else false

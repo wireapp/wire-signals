@@ -19,6 +19,8 @@ package signals
 
 import java.util.concurrent.atomic.AtomicReference
 
+import threading.Threading
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -48,7 +50,7 @@ class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B,
     } (context)
   }
 
-  private lazy val context = executionContext.getOrElse(Threading.Background)
+  private lazy val context = executionContext.getOrElse(Threading().mainThread)
 
   override def onWire(): Unit = {
     stash = Vector.empty
