@@ -19,7 +19,7 @@ package signals
 
 import org.scalatest._
 
-@Ignore class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter with RobolectricTests with RobolectricUtils  {
+class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
 
   implicit val ec: EventContext = EventContext.Global
 

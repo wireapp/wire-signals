@@ -29,7 +29,7 @@ class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B,
   private val loadId = new AtomicReference[AnyRef]
   @volatile private var stash = Vector.empty[A]
 
-  override protected[events] def onEvent(event: A, currentContext: Option[ExecutionContext]): Unit = valueMonitor synchronized {
+  override protected[signals] def onEvent(event: A, currentContext: Option[ExecutionContext]): Unit = valueMonitor synchronized {
     if (loadId.get eq null) value.foreach(v => AggregatingSignal.this.set(Some(f(v, event)), currentContext))
     else if (stashing) stash :+= event
   }

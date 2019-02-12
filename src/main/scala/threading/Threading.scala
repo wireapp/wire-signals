@@ -29,4 +29,6 @@ object Threading {
   }
 
   def apply(): Threading = _instance.get
+
+  implicit lazy val executionContext: ExecutionContext = apply().mainThread
 }

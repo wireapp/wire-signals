@@ -20,16 +20,17 @@ package signals
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, CyclicBarrier, TimeUnit}
 
-import com.waz.specs.AndroidFreeSpec
-import com.waz.specs.AndroidFreeSpec.DefaultTimeout
-import com.waz.testutils.Implicits._
+import utils._
+import org.scalatest._
+import threading.{SerialDispatchQueue, Threading}
+import threading.Threading.executionContext
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 
-class SignalSpec extends AndroidFreeSpec {
-  import scala.concurrent.ExecutionContext.Implicits.global
+class SignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter with BeforeAndAfterEach {
+  implicit val ec: EventContext = EventContext.Global
 
   var received = Seq[Int]()
   val capture = (value: Int) => received = received :+ value
@@ -221,74 +222,52 @@ class SignalSpec extends AndroidFreeSpec {
     }
 
     scenario("Two concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(2, 1000, EventContext.Global, Some(Threading.Background), Threading.Background)()
+      concurrentDispatches(2, 1000, EventContext.Global, Some(executionContext), executionContext)()
     }
 
     scenario("Several concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(10, 200, EventContext.Global, Some(Threading.Background), Threading.Background)()
+      concurrentDispatches(10, 200, EventContext.Global, Some(executionContext), executionContext)()
     }
 
     scenario("Many concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(100, 200, EventContext.Global, Some(Threading.Background), Threading.Background)()
+      concurrentDispatches(100, 200, EventContext.Global, Some(executionContext), executionContext)()
     }
 
 
 
     scenario("Two concurrent dispatches (subscriber on UI eventcontext)") {
-      concurrentDispatches(2, 1000, eventContext, Some(Threading.Background), Threading.Background)()
+      concurrentDispatches(2, 1000, eventContext, Some(executionContext), executionContext)()
     }
 
     scenario("Several concurrent dispatches (subscriber on UI event context)") {
-      concurrentDispatches(10, 200, eventContext, Some(Threading.Background), Threading.Background)()
+      concurrentDispatches(10, 200, eventContext, Some(executionContext), executionContext)()
     }
 
     scenario("Many concurrent dispatches (subscriber on UI event context)") {
-      concurrentDispatches(100, 100, eventContext, Some(Threading.Background), Threading.Background)()
-    }
-
-
-
-    scenario("Several asynchronous but serial UI dispatches (subscriber and source on UI event context)") {
-      concurrentDispatches(10, 200, eventContext, Some(Threading.Ui), Threading.Ui)()
+      concurrentDispatches(100, 100, eventContext, Some(executionContext), executionContext)()
     }
 
 
 
     scenario("Several concurrent dispatches (global event context, no source context)") {
-      concurrentDispatches(10, 200, EventContext.Global, None, Threading.Background)()
+      concurrentDispatches(10, 200, EventContext.Global, None, executionContext)()
     }
 
     scenario("Several concurrent dispatches (subscriber on UI context, no source context)") {
-      concurrentDispatches(10, 200, eventContext, None, Threading.Background)()
+      concurrentDispatches(10, 200, eventContext, None, executionContext)()
     }
 
-    scenario("Several asynchronous but serial UI dispatches (subscriber on UI event context, no source context)") {
-      concurrentDispatches(10, 200, eventContext, None, Threading.Ui)()
-    }
 
 
 
     scenario("Several concurrent mutations (subscriber on global event context)") {
-      concurrentMutations(10, 200, EventContext.Global, Threading.Background)()
+      concurrentMutations(10, 200, EventContext.Global, executionContext)()
     }
 
     scenario("Several concurrent mutations (subscriber on UI event context)") {
-      concurrentMutations(10, 200, eventContext, Threading.Background)()
+      concurrentMutations(10, 200, eventContext, executionContext)()
     }
 
-    scenario("Several asynchronous but serial mutations (subscriber on UI event context)") {
-      concurrentMutations(10, 200, eventContext, Threading.Ui)()
-    }
-
-
-
-    scenario("Several concurrent mutations (subscriber on UI event and execution context)") {
-      concurrentMutations(10, 200, eventContext, Threading.Background)(s => g => s.onUi(g)(eventContext))
-    }
-
-    scenario("Several concurrent dispatches (subscriber on UI event and execution context)") {
-      concurrentDispatches(10, 200, eventContext, Some(Threading.Background), Threading.Background)(s => g => s.onUi(g)(eventContext))
-    }
   }
 
   def concurrentDispatches(dispatches: Int, several: Int, eventContext: EventContext, dispatchExecutionContext: Option[ExecutionContext], actualExecutionContext: ExecutionContext)(subscribe: Signal[Int] => (Int => Unit) => Subscription = s => g => s(g)(eventContext)): Unit =

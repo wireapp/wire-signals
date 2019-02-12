@@ -55,14 +55,14 @@ trait ForcedEventSource[E] extends EventSource[E] {
 }
 
 abstract class BaseSubscription(context: WeakReference[EventContext]) extends Subscription {
-  @volatile protected[events] var subscribed = false
+  @volatile protected[signals] var subscribed = false
   private var enabled = false
   private var pauseWithContext = true
 
   context.get foreach (_.register(this))
 
-  protected[events] def onSubscribe(): Unit
-  protected[events] def onUnsubscribe(): Unit
+  protected[signals] def onSubscribe(): Unit
+  protected[signals] def onUnsubscribe(): Unit
 
   def subscribe(): Unit =
     if (enabled && !subscribed) {
@@ -110,12 +110,12 @@ class SignalSubscription[E](source: Signal[E], subscriber: Events.Subscriber[E],
     }
   }
 
-  override protected[events] def onSubscribe(): Unit = {
+  override protected[signals] def onSubscribe(): Unit = {
     source.subscribe(this)
     changed(None) // refresh listener with current value
   }
 
-  override protected[events] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
 }
 
 class StreamSubscription[E](source: EventStream[E], subscriber: Events.Subscriber[E], executionContext: Option[ExecutionContext] = None)(implicit context: WeakReference[EventContext]) extends BaseSubscription(context) with EventListener[E] {
@@ -128,7 +128,7 @@ class StreamSubscription[E](source: EventStream[E], subscriber: Events.Subscribe
     }
   }
 
-  override protected[events] def onSubscribe(): Unit = source.subscribe(this)
+  override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
 
-  override protected[events] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
 }

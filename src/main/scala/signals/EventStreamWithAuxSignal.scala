@@ -21,7 +21,7 @@ import scala.concurrent.ExecutionContext
 
 class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) extends EventStream[(A, Option[B])] {
   val listener = new EventListener[A] {
-    override protected[events] def onEvent(event: A, sourceContext: Option[ExecutionContext]): Unit = dispatch((event, aux.currentValue), sourceContext)
+    override protected[signals] def onEvent(event: A, sourceContext: Option[ExecutionContext]): Unit = dispatch((event, aux.currentValue), sourceContext)
   }
 
   val auxListener = new SignalListener { override def changed(currentContext: Option[ExecutionContext]): Unit = () }
@@ -31,7 +31,7 @@ class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) ext
     aux.subscribe(auxListener)
   }
 
-  override protected[events] def onUnwire(): Unit = {
+  override protected[signals] def onUnwire(): Unit = {
     source.unsubscribe(listener)
     aux.unsubscribe(auxListener)
   }

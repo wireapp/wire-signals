@@ -19,7 +19,7 @@ package signals
 
 import org.scalatest._
 
-@Ignore class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with BeforeAndAfter with RobolectricTests {
+class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with BeforeAndAfter {
   implicit val ec: EventContext = EventContext.Global
 
   var received = Vector.empty[Int]

@@ -15,16 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package signals
+package testutils
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.Random
 
-import utils._
+object Uncontended {
+  private val localRandom = new ThreadLocal[Random] {
+    override def initialValue: Random = new Random
+  }
 
-case class Follower[A](signal: Signal[A]) {
-  private val receivedValues = new AtomicReference(Vector.empty[A])
-  def received = receivedValues.get
-  def lastReceived = received.lastOption
-  def receive(a: A): Unit = compareAndSet(receivedValues)(_ :+ a)
-  def subscribed(implicit ec: EventContext) = returning(this)(_ => signal { receive })
+  def random: Random = localRandom.get
 }

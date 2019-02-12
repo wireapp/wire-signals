@@ -17,9 +17,10 @@
  */
 package signals
 
-import com.waz.specs.AndroidFreeSpec
+import org.scalatest.{FeatureSpec, Matchers}
+import utils._
 
-class ButtonSignalSpec extends AndroidFreeSpec {
+class ButtonSignalSpec extends FeatureSpec with Matchers {
 
   scenario("Simple button press") {
 

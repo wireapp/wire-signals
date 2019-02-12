@@ -17,9 +17,9 @@
  */
 package signals
 
-import com.waz.specs.ZSpec
+import org.scalatest.{FeatureSpec, Matchers}
 
-class PartialUpdateSignalSpec extends ZSpec {
+class PartialUpdateSignalSpec extends FeatureSpec with Matchers {
 
   import EventContext.Implicits.global
   import PartialUpdateSignalSpec._

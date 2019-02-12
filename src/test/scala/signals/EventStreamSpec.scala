@@ -17,10 +17,10 @@
  */
 package signals
 
-import com.waz.specs.ZSpec
-import com.waz.utils.returning
+import utils._
+import org.scalatest.{BeforeAndAfter, FeatureSpec, Matchers, OptionValues}
 
-class EventStreamSpec extends ZSpec {
+class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
 
   import EventContext.Implicits.global
 

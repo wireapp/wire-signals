@@ -18,11 +18,13 @@
 package signals
 
 import org.scalatest._
+import signals.Publisher
+import threading.Threading._
+import utils._
 
 import scala.concurrent.Promise
-import scala.concurrent.duration._
 
-@Ignore class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter with RobolectricTests with RobolectricUtils {
+class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
   implicit val ec: EventContext = EventContext.Global
 
   feature("Aggregating incremental updates to an initial value") {
@@ -65,7 +67,7 @@ import scala.concurrent.duration._
       publisher ! "moop"
       publisher ! "eek"
 
-      awaitUi(333.millis)
+      Thread.sleep(333L)
 
       sub.value shouldBe None
       aggregator.value shouldBe None

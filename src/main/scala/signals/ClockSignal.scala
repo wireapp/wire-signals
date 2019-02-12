@@ -17,11 +17,13 @@
  */
 package signals
 
-import com.waz.threading.CancellableFuture
-import com.waz.threading.CancellableFuture.delayed
+import org.threeten.bp.{Clock, Instant}
+import threading.{CancellableFuture, Threading}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
+import org.threeten.bp.Instant.now
+import utils._
 
 case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC()) extends SourceSignal[Instant](Some(now(clock))) {
 
@@ -30,7 +32,7 @@ case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC(
   def refresh: Unit = if (wired) {
     publish(now(clock))
     delay.cancel()
-    delay = delayed(interval)(refresh)(Background)
+    delay = CancellableFuture.delayed(interval)(refresh)(Threading.executionContext)
   }
 
   //To force a refresh in tests when clock is advanced

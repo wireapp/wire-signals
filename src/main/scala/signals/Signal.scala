@@ -86,10 +86,10 @@ trait SignalListener {
   def changed(currentContext: Option[ExecutionContext]): Unit
 }
 
-class Signal[A](@volatile protected[events] var value: Option[A] = None) extends Observable[SignalListener] with EventSource[A] { self =>
+class Signal[A](@volatile protected[signals] var value: Option[A] = None) extends Observable[SignalListener] with EventSource[A] { self =>
   private object updateMonitor
 
-  protected[events] def update(f: Option[A] => Option[A], currentContext: Option[ExecutionContext] = None): Boolean = {
+  protected[signals] def update(f: Option[A] => Option[A], currentContext: Option[ExecutionContext] = None): Boolean = {
     val changed = updateMonitor.synchronized {
       val next = f(value)
       if (value != next) { value = next; true }
@@ -99,14 +99,14 @@ class Signal[A](@volatile protected[events] var value: Option[A] = None) extends
     changed
   }
 
-  protected[events] def set(v: Option[A], currentContext: Option[ExecutionContext] = None) = {
+  protected[signals] def set(v: Option[A], currentContext: Option[ExecutionContext] = None) = {
     if (value != v) {
       value = v
       notifyListeners(currentContext)
     }
   }
 
-  private[events] def notifyListeners(currentContext: Option[ExecutionContext]): Unit = super.notifyListeners { _.changed(currentContext) }
+  private[signals] def notifyListeners(currentContext: Option[ExecutionContext]): Unit = super.notifyListeners { _.changed(currentContext) }
 
   final def currentValue: Option[A] = {
     if (!wired) {
@@ -130,7 +130,7 @@ class Signal[A](@volatile protected[events] var value: Option[A] = None) extends
     }
 
     override protected def onWire(): Unit = self.subscribe(this)
-    override protected[events] def onUnwire(): Unit = self.unsubscribe(this)
+    override protected[signals] def onUnwire(): Unit = self.unsubscribe(this)
   }
 
   def head: Future[A] = currentValue match {
@@ -203,8 +203,8 @@ trait NoAutowiring { self: Signal[_] =>
 final class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring {
   override def subscribe(l: SignalListener): Unit = ()
   override def unsubscribe(l: SignalListener): Unit = ()
-  override protected[events] def update(f: (Option[A]) => Option[A], ec: Option[ExecutionContext]): Boolean = throw new UnsupportedOperationException("Const signal can not be updated")
-  override protected[events] def set(v: Option[A], ec: Option[ExecutionContext]): Unit = throw new UnsupportedOperationException("Const signal can not be changed")
+  override protected[signals] def update(f: (Option[A]) => Option[A], ec: Option[ExecutionContext]): Boolean = throw new UnsupportedOperationException("Const signal can not be updated")
+  override protected[signals] def set(v: Option[A], ec: Option[ExecutionContext]): Unit = throw new UnsupportedOperationException("Const signal can not be changed")
 }
 
 final class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends ProxySignal[A](source) {
@@ -214,7 +214,7 @@ final class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extend
 
   override protected def computeValue(current: Option[A]): Option[A] = source.value
 
-  override private[events] def notifyListeners(ec: Option[ExecutionContext]): Unit =
+  override private[signals] def notifyListeners(ec: Option[ExecutionContext]): Unit =
     if (waiting.compareAndSet(false, true)) {
       val context = ec.getOrElse(Threading().mainThread)
       val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
@@ -344,7 +344,7 @@ class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventSt
   @volatile private var subscription = Option.empty[Subscription]
 
   private def reload() = subscription foreach { _ =>
-    loadFuture.cancel()(tag)
+    loadFuture.cancel()
     val p = Promise[Unit]
     val thisReload = CancellableFuture.lift(p.future)
     loadFuture = thisReload
@@ -364,7 +364,7 @@ class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventSt
     Future {
       subscription.foreach(_.unsubscribe())
       subscription = None
-      loadFuture.cancel()(tag)
+      loadFuture.cancel()
       value = None
     }(queue)
   }
@@ -374,7 +374,7 @@ class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends Proxy
 
   private object updateMonitor
 
-  override protected[events] def update(f: Option[A] => Option[A], currentContext: Option[ExecutionContext]) = {
+  override protected[signals] def update(f: Option[A] => Option[A], currentContext: Option[ExecutionContext]) = {
     val changed = updateMonitor.synchronized {
       val next = f(value)
       if (value.map(select) != next.map(select)) {

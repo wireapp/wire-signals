@@ -19,17 +19,18 @@ package signals
 
 import java.util.concurrent.atomic.AtomicReference
 
-import com.waz.testutils.Implicits._
-import com.waz.threading.CancellableFuture.delayed
-import com.waz.utils._
-import com.waz.testutils.Uncontended.random
+import utils._
+
 import org.scalatest._
 import org.threeten.bp.Instant
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import threading.Threading.executionContext
+import threading.CancellableFuture.delayed
+import testutils.Uncontended.random
 
-@Ignore class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors with BeforeAndAfter with RobolectricTests with RobolectricUtils {
+class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors with BeforeAndAfter {
 
   feature("Forwarding") {
 
@@ -53,7 +54,7 @@ import scala.concurrent.duration._
     }
 
     scenario("throttle parallel events") (spying { spy =>
-      import Threading.Implicits.Background, FiniteDuration.FiniteDurationIsOrdered, spy._
+      import FiniteDuration.FiniteDurationIsOrdered, spy._
 
       received.set(Vector.empty[(Int, Instant)])
       val s = Signal[Int]()

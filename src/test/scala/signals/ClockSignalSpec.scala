@@ -17,14 +17,14 @@
  */
 package signals
 
-import com.waz.testutils.Implicits._
-import com.waz.testutils.Matchers._
 import org.scalatest._
 import org.threeten.bp.Instant, Instant.now
 
 import scala.concurrent.duration._
+import testutils._
+import testutils.Matchers._
 
-@Ignore class ClockSignalSpec extends FeatureSpec with Matchers with OptionValues with RobolectricTests with RobolectricUtils {
+class ClockSignalSpec extends FeatureSpec with Matchers with OptionValues {
 
   implicit val tolerance = 100.millis.tolerance
 

@@ -19,7 +19,7 @@ package signals
 
 import org.scalatest._
 
-@Ignore class ScanSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter with RobolectricTests {
+class ScanSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
 
   implicit val ec: EventContext = EventContext.Global
 
