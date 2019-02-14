@@ -1,5 +1,10 @@
 package utils
 
+object returning {
+  final def apply[A](a: A)(body: A => Unit): A = { body(a); a }
+}
+/*
+
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
 
@@ -7,9 +12,6 @@ object returning {
   def apply[A](init: A)(effects: A => Unit): A = macro KestrelMacro.apply[A]
 }
 
-object returningF { // fallback for the very rare case where macro expansion results in a compiler crash
-  def apply[A](a: A)(body: A => Unit): A = { body(a); a }
-}
 
 private object KestrelMacro {
   def apply[A](c: Context)(init: c.Tree)(effects: c.Tree) = {
@@ -21,3 +23,4 @@ private object KestrelMacro {
     }
   }
 }
+*/

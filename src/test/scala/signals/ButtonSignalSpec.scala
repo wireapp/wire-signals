@@ -34,10 +34,10 @@ class ButtonSignalSpec extends FeatureSpec with Matchers {
       }
     }.disableAutowiring()
 
-    button.press()("test")
+    button.press()
     result(button.filter(_ == true).head)
 
-    button.press()("test")
+    button.press()
     result(button.filter(_ == false).head)
   }
 
@@ -51,7 +51,7 @@ class ButtonSignalSpec extends FeatureSpec with Matchers {
       }
     }
 
-    button.press()("test")
+    button.press()
     result(button.filter(_ == false).head)
   }
 
