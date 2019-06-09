@@ -17,6 +17,8 @@
  */
 package threading
 
+import java.util.TimerTask
+
 import signals.{BaseSubscription, EventContext}
 
 import scala.collection.generic.CanBuild
@@ -217,8 +219,7 @@ object CancellableFuture {
     if (d <= Duration.Zero) successful(())
     else {
       val p = Promise[Unit]()
-      val task = Threading().createTask(() => p.trySuccess(()))
-      Threading().timer.schedule(task, d.toMillis)
+      val task = Threading()schedule(() => p.trySuccess(()), d.toMillis)
       new CancellableFuture(p) {
         override def cancel(): Boolean = {
           task.cancel()
@@ -249,14 +250,13 @@ object CancellableFuture {
         startNewTimeoutLoop()
 
         private def startNewTimeoutLoop(): Unit = {
-          currentTask = Threading().createTask(() => {
+          currentTask = Threading().schedule(() => {
             if (shouldLoop()) startNewTimeoutLoop()
             else {
               doCleanup()
               promise.success(())
             }
-          })
-          Threading().timer.schedule(currentTask, duration.toMillis)
+          }, duration.toMillis)
         }
 
         private def doCleanup(): Unit = {
