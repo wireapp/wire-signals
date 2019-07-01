@@ -14,6 +14,7 @@ trait DispatchQueue extends ExecutionContext {
 
   /**
     * Executes a task on this queue.
+    *
     * @param task - operation to perform on this queue.
     */
   def apply[A](task: => A): CancellableFuture[A] = CancellableFuture(task)(this)
@@ -26,14 +27,15 @@ trait DispatchQueue extends ExecutionContext {
 }
 
 object DispatchQueue {
-  def apply(concurrentTasks: Int = 0, executor: ExecutionContext = Threading().mainThread): DispatchQueue = concurrentTasks match {
+  def apply(concurrentTasks: Int = 0, executor: ExecutionContext = Threading.executionContext): DispatchQueue = concurrentTasks match {
     case 0 => new UnlimitedDispatchQueue(executor)
     case 1 => new SerialDispatchQueue(executor)
     case _ => new LimitedDispatchQueue(concurrentTasks, executor)
   }
 }
 
-class UnlimitedDispatchQueue(executor: ExecutionContext = Threading().mainThread, override val name: String = "UnlimitedQueue") extends DispatchQueue {
+class UnlimitedDispatchQueue(executor: ExecutionContext = Threading.executionContext,
+                             override val name: String = "UnlimitedQueue") extends DispatchQueue {
   override def execute(runnable: Runnable): Unit = executor.execute(DispatchQueueStats(name, runnable))
 }
 
@@ -41,7 +43,9 @@ class UnlimitedDispatchQueue(executor: ExecutionContext = Threading().mainThread
   * Execution context limiting number of concurrently executing tasks.
   * All tasks are executed on parent execution context.
   */
-class LimitedDispatchQueue(concurrencyLimit: Int = 1, parent: ExecutionContext = Threading().mainThread, override val name: String = "LimitedQueue") extends DispatchQueue {
+class LimitedDispatchQueue(concurrencyLimit: Int = 1,
+                           parent: ExecutionContext = Threading.executionContext,
+                           override val name: String = "LimitedQueue") extends DispatchQueue {
   require(concurrencyLimit > 0, "concurrencyLimit should be greater than 0")
 
   override def execute(runnable: Runnable): Unit = Executor.dispatch(runnable)
@@ -68,9 +72,9 @@ class LimitedDispatchQueue(concurrencyLimit: Int = 1, parent: ExecutionContext =
     override def run(): Unit = {
 
       @tailrec
-      def executeBatch(counter: Int = 0): Unit = queue.poll() match {
-        case null => // done
-        case runnable =>
+      def executeBatch(counter: Int = 0): Unit = Option(queue.poll()) match {
+        case None => // done
+        case Some(runnable) =>
           try {
             runnable.run()
           } catch {
@@ -81,8 +85,7 @@ class LimitedDispatchQueue(concurrencyLimit: Int = 1, parent: ExecutionContext =
 
       executeBatch()
 
-      if (runningCount.decrementAndGet() < concurrencyLimit && !queue.isEmpty)
-        dispatchExecutor()
+      if (runningCount.decrementAndGet() < concurrencyLimit && !queue.isEmpty) dispatchExecutor()
     }
   }
 
@@ -97,7 +100,7 @@ object LimitedDispatchQueue {
   val MaxBatchSize = 100
 }
 
-class SerialDispatchQueue(executor: ExecutionContext = Threading().mainThread,
+class SerialDispatchQueue(executor: ExecutionContext = Threading.executionContext,
                           override val name: String = "serial_" + ZSecureRandom.nextInt().toHexString)
   extends LimitedDispatchQueue(1, executor)
 

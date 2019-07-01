@@ -19,7 +19,7 @@ package com.wire.signals
 
 import org.scalatest._
 
-class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with OptionValues  {
+class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with OptionValues {
 
   private lazy val e = Publisher[String](None)
   private lazy val aux = new SourceSignal[Int]
@@ -32,7 +32,7 @@ class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with Option
 
     val sub = r { r =>
       events = r :: events
-    } (EventContext.Global)
+    }(EventContext.Global)
 
     events shouldEqual Nil
 
@@ -53,7 +53,7 @@ class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with Option
 
     e ! "meep"
     events should have size 4
-    events.head shouldEqual ("meep", Some(2))
+    events.head shouldEqual("meep", Some(2))
 
     sub.unsubscribe()
 

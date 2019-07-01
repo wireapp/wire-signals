@@ -18,6 +18,7 @@
 package com.wire.signals
 
 trait EventContext {
+
   private object lock
 
   private[this] var started = false
@@ -27,52 +28,49 @@ trait EventContext {
   protected implicit def eventContext: EventContext = this
 
   override protected def finalize(): Unit = {
-    lock.synchronized { if (! destroyed) onContextDestroy() }
+    lock.synchronized {
+      if (!destroyed) onContextDestroy()
+    }
     super.finalize()
   }
 
-  def onContextStart(): Unit = {
-    lock.synchronized {
-      if (! started) {
-        started = true
-        observers foreach (_.subscribe()) // XXX during this, subscribe may call Observable#onWire with in turn may call register which will change observers
-      }
+  def onContextStart(): Unit = lock.synchronized {
+    if (!started) {
+      started = true
+      observers.foreach(_.subscribe()) // XXX during this, subscribe may call Observable#onWire which in turn may call register which will change observers
     }
   }
 
-  def onContextStop(): Unit = {
-    lock.synchronized {
-      if (started) {
-        started = false
-        observers foreach (_.unsubscribe())
-      }
+
+  def onContextStop(): Unit = lock.synchronized {
+    if (started) {
+      started = false
+      observers.foreach(_.unsubscribe())
     }
   }
 
-  def onContextDestroy(): Unit = {
-    lock.synchronized {
-      destroyed = true
-      val observersToDestroy = observers
-      observers = Set.empty
-      observersToDestroy foreach (_.destroy())
+
+  def onContextDestroy(): Unit = lock.synchronized {
+    destroyed = true
+    val observersToDestroy = observers
+    observers = Set.empty
+    observersToDestroy.foreach(_.destroy())
+  }
+
+
+  def register(observer: Subscription): Unit = lock.synchronized {
+    assert(!destroyed, "context already destroyed")
+
+    if (!observers.contains(observer)) {
+      observers += observer
+      if (started) observer.subscribe()
     }
   }
 
-  def register(observer: Subscription): Unit = {
-    lock.synchronized {
-      assert(!destroyed, "context already destroyed")
 
-      if (! observers.contains(observer)) {
-        observers += observer
-        if (started) observer.subscribe()
-      }
-    }
-  }
+  def unregister(observer: Subscription): Unit = lock.synchronized(observers -= observer)
 
-  def unregister(observer: Subscription): Unit =
-    lock.synchronized(observers -= observer)
-
-  def isContextStarted: Boolean = lock.synchronized(started && ! destroyed)
+  def isContextStarted: Boolean = lock.synchronized(started && !destroyed)
 }
 
 object EventContext {
@@ -84,9 +82,14 @@ object EventContext {
   object Global extends EventContext {
     override def register(observer: Subscription): Unit = () // do nothing, global context will never need the observers (can not be stopped)
     override def unregister(observer: Subscription): Unit = ()
+
     override def onContextStart(): Unit = ()
+
     override def onContextStop(): Unit = ()
+
     override def onContextDestroy(): Unit = ()
+
     override def isContextStarted: Boolean = true
   }
+
 }

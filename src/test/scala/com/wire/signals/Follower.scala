@@ -23,8 +23,14 @@ import utils._
 
 case class Follower[A](signal: Signal[A]) {
   private val receivedValues = new AtomicReference(Vector.empty[A])
+
   def received: Vector[A] = receivedValues.get
+
   def lastReceived: Option[A] = received.lastOption
+
   def receive(a: A): Unit = compareAndSet(receivedValues)(_ :+ a)
-  def subscribed(implicit ec: EventContext): Follower[A] = returning(this)(_ => signal { receive })
+
+  def subscribed(implicit ec: EventContext): Follower[A] = returning(this)(_ => signal {
+    receive
+  })
 }

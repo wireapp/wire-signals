@@ -65,7 +65,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       s.hasSubscribers shouldEqual false
     }
 
-    scenario("Don't receive events after unregistering a single observer")  {
+    scenario("Don't receive events after unregistering a single observer") {
       val s = Signal(1)
       val sub = s(capture)
       s ! 2
@@ -138,7 +138,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       val num = new AtomicInteger(0)
       val s = Signal(0)
 
-      def add(barrier: CyclicBarrier): Future[Subscription] = Future(blocking{
+      def add(barrier: CyclicBarrier): Future[Subscription] = Future(blocking {
         barrier.await()
         s { _ => num.incrementAndGet() }
       })
@@ -151,12 +151,12 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       num.getAndSet(0) shouldEqual 50
 
       val chaosBarrier = new CyclicBarrier(75)
-      val removals = Future.traverse(subs.take(25)) (sub => Future(blocking {
+      val removals = Future.traverse(subs.take(25))(sub => Future(blocking {
         chaosBarrier.await()
         sub.destroy()
       }))
       val adding = Future.sequence(Seq.fill(25)(add(chaosBarrier)))
-      val sending = Future.traverse(1 to 25) (n => Future(blocking {
+      val sending = Future.traverse(1 to 25)(n => Future(blocking {
         chaosBarrier.await()
         s ! n
       }))
@@ -165,12 +165,12 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       Await.result(removals, 10.seconds)
       Await.result(sending, 10.seconds)
 
-      num.get should be <= 75*25
-      num.get should be >= 25*25
+      num.get should be <= 75 * 25
+      num.get should be >= 25 * 25
       s.hasSubscribers shouldEqual true
 
       barrier.reset()
-      Await.result(Future.traverse(moreSubs ++ subs.drop(25)) (sub => Future(blocking {
+      Await.result(Future.traverse(moreSubs ++ subs.drop(25))(sub => Future(blocking {
         barrier.await()
         sub.destroy()
       })), 10.seconds)
@@ -178,21 +178,29 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
     scenario("Concurrent updates with incremental values") {
-      incrementalUpdates((s, r) => s { r.add })
+      incrementalUpdates((s, r) => s {
+        r.add
+      })
     }
 
     scenario("Concurrent updates with incremental values with serial dispatch queue") {
       val dispatcher = new SerialDispatchQueue()
-      incrementalUpdates((s, r) => s.on(dispatcher) { r.add })
+      incrementalUpdates((s, r) => s.on(dispatcher) {
+        r.add
+      })
     }
 
     scenario("Concurrent updates with incremental values and onChanged listener") {
-      incrementalUpdates((s, r) => s.onChanged { r.add })
+      incrementalUpdates((s, r) => s.onChanged {
+        r.add
+      })
     }
 
     scenario("Concurrent updates with incremental values and onChanged listener with serial dispatch queue") {
       val dispatcher = new SerialDispatchQueue()
-      incrementalUpdates((s, r) => s.onChanged.on(dispatcher) { r.add })
+      incrementalUpdates((s, r) => s.onChanged.on(dispatcher) {
+        r.add
+      })
     }
 
     def incrementalUpdates(listen: (Signal[Int], ConcurrentLinkedQueue[Int]) => Unit): Unit = {
@@ -234,7 +242,6 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
 
-
     scenario("Two concurrent dispatches (subscriber on UI eventcontext)") {
       concurrentDispatches(2, 1000, eventContext, Some(executionContext), executionContext)()
     }
@@ -248,7 +255,6 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
 
-
     scenario("Several concurrent dispatches (global event context, no source context)") {
       concurrentDispatches(10, 200, EventContext.Global, None, executionContext)()
     }
@@ -256,8 +262,6 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     scenario("Several concurrent dispatches (subscriber on UI context, no source context)") {
       concurrentDispatches(10, 200, eventContext, None, executionContext)()
     }
-
-
 
 
     scenario("Several concurrent mutations (subscriber on global event context)") {

@@ -34,11 +34,15 @@ object Events {
 
 trait Subscription {
   def enable(): Unit
+
   def disable(): Unit
+
   def destroy(): Unit
+
   def disablePauseWithContext(): Unit
 
   def subscribe(): Unit
+
   def unsubscribe(): Unit
 }
 
@@ -46,12 +50,16 @@ trait EventSource[E] {
   val executionContext = Option.empty[ExecutionContext]
 
   def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription
+
   def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription
 }
 
 trait ForcedEventSource[E] extends EventSource[E] {
-  abstract override def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription = returning(super.on(ec)(subscriber))(_.disablePauseWithContext())
-  abstract override def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription = returning(super.apply(subscriber))(_.disablePauseWithContext())
+  abstract override def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription =
+    returning(super.on(ec)(subscriber))(_.disablePauseWithContext())
+
+  abstract override def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription =
+    returning(super.apply(subscriber))(_.disablePauseWithContext())
 }
 
 abstract class BaseSubscription(context: WeakReference[EventContext]) extends Subscription {
@@ -62,6 +70,7 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
   context.get foreach (_.register(this))
 
   protected[signals] def onSubscribe(): Unit
+
   protected[signals] def onUnsubscribe(): Unit
 
   def subscribe(): Unit =

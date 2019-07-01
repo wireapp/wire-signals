@@ -61,7 +61,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
     scenario("Value of a flatMapped signal") {
       val signalA = Signal(1)
       val signalB = Signal[Int]()
-      val chain = signalA.flatMap(a => signalB.map(b => a + b) )
+      val chain = signalA.flatMap(a => signalB.map(b => a + b))
       chain.currentValue shouldBe empty
       signalB ! 42
       chain.currentValue.value shouldEqual 43
@@ -84,7 +84,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val fan = Follower(chain).subscribed
       fan.lastReceived shouldBe empty
       signalB ! "one"
-      fan.lastReceived.value shouldEqual (1, "one")
+      fan.lastReceived.value shouldEqual(1, "one")
     }
 
     scenario("Combining with an empty signal") {

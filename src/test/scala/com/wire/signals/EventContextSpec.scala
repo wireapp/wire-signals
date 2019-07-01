@@ -20,7 +20,8 @@ package com.wire.signals
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest._
 
-class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter with TableDrivenPropertyChecks { test =>
+class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter with TableDrivenPropertyChecks {
+  test =>
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
@@ -31,12 +32,12 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
   feature("Removing event observers") {
     scenario("Removing") {
       forAll(Table(
-          ("input", "to remove", "result"),
-          (Vector("a", "b", "c", "d"), "b", Vector("a", "c", "d")),
-          (Vector("a", "b", "c", "d"), "a", Vector("b", "c", "d")),
-          (Vector("a", "b", "c", "d"), "d", Vector("a", "b", "c")),
-          (Vector("a", "b", "c", "d"), "e", Vector("a", "b", "c", "d")),
-          (Vector("a", "b", "b", "c", "d"), "b", Vector("a", "b", "c", "d")))) { (in: Vector[String], remove: String, result: Vector[String]) =>
+        ("input", "to remove", "result"),
+        (Vector("a", "b", "c", "d"), "b", Vector("a", "c", "d")),
+        (Vector("a", "b", "c", "d"), "a", Vector("b", "c", "d")),
+        (Vector("a", "b", "c", "d"), "d", Vector("a", "b", "c")),
+        (Vector("a", "b", "c", "d"), "e", Vector("a", "b", "c", "d")),
+        (Vector("a", "b", "b", "c", "d"), "b", Vector("a", "b", "c", "d")))) { (in: Vector[String], remove: String, result: Vector[String]) =>
 
         Events.removeObserver(in, remove) shouldEqual result
       }
