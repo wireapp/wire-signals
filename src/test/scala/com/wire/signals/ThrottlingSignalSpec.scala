@@ -54,7 +54,7 @@ class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors wit
       }
     }
 
-    scenario("throttle parallel events") (spying { spy =>
+    scenario("throttle parallel events")(spying { spy =>
       import FiniteDuration.FiniteDurationIsOrdered, spy._
 
       received.set(Vector.empty[(Int, Instant)])
@@ -81,7 +81,7 @@ class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors wit
       val m = s.throttle(100.millis)
       s.isWired shouldBe false
 
-      val o = m { _ => ()}
+      val o = m { _ => () }
       s.isWired shouldBe true
 
       o.disable()

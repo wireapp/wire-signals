@@ -55,7 +55,7 @@ class ScanSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
 
     scenario("Chained scanning") {
       val s = Signal(1)
-      val scanned = s .scan(0)(_ + _) .scan(1)(_ * _)
+      val scanned = s.scan(0)(_ + _).scan(1)(_ * _)
       scanned.currentValue shouldEqual Some(1)
 
       scanned(capture)

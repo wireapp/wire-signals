@@ -27,26 +27,32 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
   implicit val ec: EventContext = EventContext.Global
 
   feature("Aggregating incremental updates to an initial value") {
-    scenario("new aggregator, no subscribers")(withAggregator { env => import env._
+    scenario("new aggregator, no subscribers")(withAggregator { env =>
+      import env._
       aggregator.value shouldBe None
       finishLoading()
       publisher ! "meep"
       aggregator.value shouldBe None
     })
 
-    scenario("one subscriber")(withAggregator { env => import env._
+    scenario("one subscriber")(withAggregator { env =>
+      import env._
       val sub = subscribe()
       sub.value shouldBe None
       aggregator.value shouldBe None
 
       finishLoading()
 
-      withDelay { sub.value.value shouldBe Seq(42) }
+      withDelay {
+        sub.value.value shouldBe Seq(42)
+      }
       aggregator.value.value shouldBe Seq(42)
 
       publisher ! "meep"
 
-      withDelay { sub.value.value shouldBe Seq(42, 4) }
+      withDelay {
+        sub.value.value shouldBe Seq(42, 4)
+      }
       aggregator.value.value shouldBe Seq(42, 4)
 
       aggregator.unsubscribeAll()
@@ -57,7 +63,8 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
       aggregator.value.value shouldBe Seq(42, 4)
     })
 
-    scenario("events while subscribed but still loading")(withAggregator { env => import env._
+    scenario("events while subscribed but still loading")(withAggregator { env =>
+      import env._
       val sub = subscribe()
       sub.value shouldBe None
       aggregator.value shouldBe None
@@ -75,11 +82,14 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
       finishLoading()
       publisher ! "supercalifragilisticexpialidocious"
 
-      withDelay { sub.value.value shouldBe Seq(42, 4, 4, 3, 1, 34) }
+      withDelay {
+        sub.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
+      }
       aggregator.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
     })
 
-    scenario("reload on re-wire")(withAggregator { env => import env._
+    scenario("reload on re-wire")(withAggregator { env =>
+      import env._
       val sub = subscribe()
       finishLoading()
 
@@ -87,7 +97,9 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
       publisher ! "such"
       publisher ! "publish"
 
-      withDelay { sub.value.value shouldBe Seq(42, 3, 4, 7) }
+      withDelay {
+        sub.value.value shouldBe Seq(42, 3, 4, 7)
+      }
       aggregator.value.value shouldBe Seq(42, 3, 4, 7)
 
       aggregator.unsubscribeAll()
@@ -113,14 +125,18 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
 
       finishLoading(Seq(42, 3, 4, 7, 9))
 
-      withDelay { sub2.value.value shouldBe Seq(42, 3, 4, 7, 9, 10) }
+      withDelay {
+        sub2.value.value shouldBe Seq(42, 3, 4, 7, 9, 10)
+      }
       aggregator.value.value shouldBe Seq(42, 3, 4, 7, 9, 10)
       sub.value.value shouldBe Seq(42, 3, 4, 7)
 
       publisher ! "much"
       publisher ! "amaze"
 
-      withDelay { sub2.value.value shouldBe Seq(42, 3, 4, 7, 9, 10, 4, 5) }
+      withDelay {
+        sub2.value.value shouldBe Seq(42, 3, 4, 7, 9, 10, 4, 5)
+      }
       aggregator.value.value shouldBe Seq(42, 3, 4, 7, 9, 10, 4, 5)
     })
   }
@@ -128,8 +144,11 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
   class Fixture {
     var promise: Promise[Seq[Int]] = Promise[Seq[Int]]
     val publisher: Publisher[String] = Publisher[String](None)
+
     def finishLoading(v: Seq[Int] = Seq(42)): Promise[Seq[Int]] = promise.success(v)
+
     private def loader = promise.future
+
     val aggregator = new AggregatingSignal[String, Seq[Int]](publisher, loader, (b, a) => b :+ a.length)
 
     case class Sub() {

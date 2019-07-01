@@ -65,5 +65,7 @@ class PartialUpdateSignalSpec extends FeatureSpec with Matchers {
 }
 
 object PartialUpdateSignalSpec {
+
   case class Data(value1: Int, value2: Int)
+
 }

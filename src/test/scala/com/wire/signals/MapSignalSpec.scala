@@ -44,7 +44,9 @@ class MapSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
       @volatile var vv: Option[String] = Some("invalid")
       val s = Signal("start")
       val m = s map (Option(_))
-      m { vv = _ }
+      m {
+        vv = _
+      }
       vv shouldEqual Some("start")
       s ! "meep"
       vv shouldEqual Some("meep")
@@ -86,7 +88,7 @@ class MapSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
 
       s1.isWired shouldBe false
 
-      val o = s { _ => ()}
+      val o = s { _ => () }
 
       s1.isWired shouldBe true
 

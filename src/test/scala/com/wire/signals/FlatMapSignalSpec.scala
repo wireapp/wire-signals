@@ -134,14 +134,14 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       val s2 = new IntSignal
       val s = s1.flatMap { _ => s2 }
 
-      (s1.isWired, s2.isWired) shouldEqual (false, false)
+      (s1.isWired, s2.isWired) shouldEqual(false, false)
 
-      val o = s { _ => ()}
+      val o = s { _ => () }
 
-      (s1.isWired, s2.isWired) shouldEqual (true, true)
+      (s1.isWired, s2.isWired) shouldEqual(true, true)
 
       o.disable()
-      (s1.isWired, s2.isWired) shouldEqual (false, false)
+      (s1.isWired, s2.isWired) shouldEqual(false, false)
     }
 
     scenario("un-wire discarded signal on change") {
@@ -150,15 +150,15 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       val s2 = new IntSignal(2)
 
       val fm = s flatMap Seq(s1, s2)
-      val o = fm( _ => ())
+      val o = fm(_ => ())
 
-      (s.isWired, s1.isWired, s2.isWired) shouldEqual (true, true, false)
+      (s.isWired, s1.isWired, s2.isWired) shouldEqual(true, true, false)
 
       s ! 1
-      (s.isWired, s1.isWired, s2.isWired) shouldEqual (true, false, true)
+      (s.isWired, s1.isWired, s2.isWired) shouldEqual(true, false, true)
 
       o.destroy()
-      (s.isWired, s1.isWired, s2.isWired) shouldEqual (false, false, false)
+      (s.isWired, s1.isWired, s2.isWired) shouldEqual(false, false, false)
     }
 
     scenario("update value when wired") {
@@ -171,7 +171,7 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       s ! 1
       s.value shouldEqual Some(1)
       fm.value shouldEqual None // not updated because signal is not autowired
-      val o = fm( _ => ())
+      val o = fm(_ => ())
 
       fm.value shouldEqual Some(1) // updated when wiring
     }

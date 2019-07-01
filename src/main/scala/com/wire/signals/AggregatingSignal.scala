@@ -22,31 +22,33 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B, A) => B, stashing: Boolean = true) extends Signal[B] with EventListener[A] {
+class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B, A) => B, stashing: Boolean = true)
+  extends Signal[B] with EventListener[A] {
+
   private object valueMonitor
+
   private val loadId = new AtomicReference[AnyRef]
   @volatile private var stash = Vector.empty[A]
 
-  override protected[signals] def onEvent(event: A, currentContext: Option[ExecutionContext]): Unit = valueMonitor synchronized {
+  override protected[signals] def onEvent(event: A, currentContext: Option[ExecutionContext]): Unit = valueMonitor.synchronized {
     if (loadId.get eq null) value.foreach(v => AggregatingSignal.this.set(Some(f(v, event)), currentContext))
     else if (stashing) stash :+= event
   }
 
-  private def startLoading(id: AnyRef): Unit = {
-    load.onComplete {
-      case Success(s) if loadId.get eq id =>
-        valueMonitor.synchronized {
-          AggregatingSignal.this.set(Some(stash.foldLeft(s)(f)), Some(context))
-          loadId.compareAndSet(id, null)
-          stash = Vector.empty
-        }
-      case Failure(ex) if loadId.get eq id =>
-        valueMonitor.synchronized(stash = Vector.empty)
-        println("load failed", ex)
-      case _ =>
-        println("delegate is no longer the current one, discarding loaded value")
-    } (context)
-  }
+  private def startLoading(id: AnyRef): Unit = load.onComplete {
+    case Success(s) if loadId.get eq id =>
+      valueMonitor.synchronized {
+        AggregatingSignal.this.set(Some(stash.foldLeft(s)(f)), Some(context))
+        loadId.compareAndSet(id, null)
+        stash = Vector.empty
+      }
+    case Failure(ex) if loadId.get eq id =>
+      valueMonitor.synchronized(stash = Vector.empty)
+      println("load failed", ex)
+    case _ =>
+      println("delegate is no longer the current one, discarding loaded value")
+  }(context)
+
 
   private lazy val context = executionContext.getOrElse(Threading().mainThread)
 

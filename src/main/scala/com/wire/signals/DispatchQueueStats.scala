@@ -13,11 +13,12 @@ object DispatchQueueStats {
     if (debug) {
       new ExecutionContext {
         override def reportFailure(cause: Throwable): Unit = executor.reportFailure(cause)
+
         override def execute(runnable: Runnable): Unit = executor.execute(DispatchQueueStats(queue, runnable))
       }
     } else executor
 
-  def apply(queue: String, task: Runnable): Runnable = if (debug) { new StatsRunnable(task, queue) } else task
+  def apply(queue: String, task: Runnable): Runnable = if (debug) new StatsRunnable(task, queue) else task
 
   def debug[A](queue: String)(f: => A): A = {
     val start = System.nanoTime()
@@ -26,13 +27,13 @@ object DispatchQueueStats {
     res
   }
 
-  def reset(): Unit = synchronized { stats.clear() }
+  def reset(): Unit = synchronized(stats.clear())
 
   def add(queue: String, init: Long, start: Long, done: Long): Unit = DispatchQueueStats.synchronized {
     stats.getOrElseUpdate(queue, QueueStats(queue)).add(init, start, done)
   }
 
-  def printStats(minTasks: Int = 10): Unit = report(minTasks) foreach println
+  def printStats(minTasks: Int = 10): Unit = report(minTasks).foreach(println)
 
   def report(minTasks: Int = 10): Seq[QueueReport] =
     stats.values.toSeq.sortBy(_.totalExecution).reverse.filter(s => s.count > minTasks || s.total > 1000000).map(_.report)
@@ -66,13 +67,14 @@ object DispatchQueueStats {
       }
     }
   }
+
 }
 
 case class QueueReport(queue: String, count: Int, total: Long, totalWait: Long, totalExecution: Long) {
 
   def time(us: Long) = f"${us / 1000000}'${us / 1000 % 1000}%03d'${us % 1000}%03d µs"
 
-  def stat(label: String, sum: Long) =  s"\t$label ${time(sum)} [${time(sum/count)}]"
+  def stat(label: String, sum: Long) = s"\t$label ${time(sum)} [${time(sum / count)}]"
 
   override def toString: String =
     s"""QueueStats[$queue] - tasks: $count
