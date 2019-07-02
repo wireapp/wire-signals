@@ -28,4 +28,5 @@ package object signals {
       override val executionContext: Option[ExecutionContext] = ec
     }
   }
+
 }

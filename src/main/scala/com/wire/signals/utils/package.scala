@@ -15,7 +15,8 @@ package object utils {
     else compareAndSet(ref)(updater)
   }
 
-  def withDelay[T](body: => T, delay: FiniteDuration = 300.millis)(implicit ec: ExecutionContext): CancellableFuture[T] = CancellableFuture.delayed(delay)(body)
+  def withDelay[T](body: => T, delay: FiniteDuration = 300.millis)(implicit ec: ExecutionContext): CancellableFuture[T] =
+    CancellableFuture.delayed(delay)(body)
 
   val DefaultTimeout: FiniteDuration = 5.seconds
 
@@ -23,27 +24,9 @@ package object utils {
     Await.result(future, duration)
 
   object returning {
-    final def apply[A](a: A)(body: A => Unit): A = { body(a); a }
-  }
-  /*
-
-  import scala.language.experimental.macros
-  import scala.reflect.macros.blackbox.Context
-
-  object returning {
-    def apply[A](init: A)(effects: A => Unit): A = macro KestrelMacro.apply[A]
-  }
-
-
-  private object KestrelMacro {
-    def apply[A](c: Context)(init: c.Tree)(effects: c.Tree) = {
-      import c.universe._
-      c.untypecheck(effects) match {
-        case          Function(List(ValDef(_, t: TermName, _, EmptyTree)), b)  => q"val $t = $init; $b; $t"
-        case Block(p, Function(List(ValDef(_, t: TermName, _, EmptyTree)), b)) => q"val $t = $init; $p; $b; $t"
-        case _        /*  no inlining possible or necessary */                 => q"val x = $init; $effects(x); x"
-      }
+    @inline
+    final def apply[A](a: A)(body: A => Unit): A = {
+      body(a); a
     }
   }
-  */
 }

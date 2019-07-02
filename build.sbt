@@ -12,8 +12,8 @@ libraryDependencies ++= Seq(
   "org.scala-lang"                %  "scala-compiler"        % (scalaVersion in ThisBuild).value % Provided,
   
   //Test dependencies
-  "org.scalatest"                 %% "scalatest"             % "3.0.5"            % Test,
-  "org.scalamock"                 %% "scalamock"             % "4.1.0"            % Test,
+  "org.scalatest"                 %% "scalatest"             % "3.0.7"            % Test,
+  "org.scalamock"                 %% "scalamock"             % "4.2.0"            % Test,
   "junit"                         %  "junit"                 % "4.8.2"            % Test
 )
 

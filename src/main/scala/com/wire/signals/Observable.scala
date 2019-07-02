@@ -20,11 +20,13 @@ package com.wire.signals
 trait Observable[Listener] {
 
   private object listenersMonitor
+
   private var autowiring = true
   @volatile private[signals] var wired = false
   @volatile private var listeners = Set.empty[Listener]
 
   protected def onWire(): Unit
+
   protected def onUnwire(): Unit
 
   private[signals] def subscribe(l: Listener): Unit = listenersMonitor.synchronized {

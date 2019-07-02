@@ -23,7 +23,8 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import org.threeten.bp.Instant.now
 
-case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC()) extends SourceSignal[Instant](Some(now(clock))) {
+case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC())
+  extends SourceSignal[Instant](Some(now(clock))) {
 
   private var delay = CancellableFuture.successful({})
 
