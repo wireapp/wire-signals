@@ -7,10 +7,9 @@ scalaVersion := "2.12.8"
 resolvers += Resolver.sonatypeRepo("releases")
 
 libraryDependencies ++= Seq(
-  "org.threeten"                  %  "threetenbp"            % "1.3.+"            % Provided,
-  "org.scala-lang"                %  "scala-reflect"         % (scalaVersion in ThisBuild).value % Provided,
-  "org.scala-lang"                %  "scala-compiler"        % (scalaVersion in ThisBuild).value % Provided,
-  
+  "org.threeten" % "threetenbp" % "1.3.+" % Provided,
+  "org.scala-lang" % "scala-reflect" % (scalaVersion in ThisBuild).value % Provided,
+  "org.scala-lang" % "scala-compiler" % (scalaVersion in ThisBuild).value % Provided,
   //Test dependencies
   "org.scalatest"                 %% "scalatest"             % "3.0.7"            % Test,
   "org.scalamock"                 %% "scalamock"             % "4.2.0"            % Test,
