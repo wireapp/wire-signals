@@ -33,3 +33,5 @@ contextMatrixTest*
 *.png
 *.jpg
 *.svg
+*.bloop*
+*.metals*

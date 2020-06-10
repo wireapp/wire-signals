@@ -92,5 +92,4 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
     }
 
   }
-
 }

@@ -32,6 +32,8 @@ case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC(
     publish(now(clock))
     delay.cancel()
     delay = CancellableFuture.delayed(interval)(refresh())(Threading.executionContext)
+  } else {
+   // info(l"Cannot publish ClockSignal value: not wired")
   }
 
   //To force a refresh in tests when clock is advanced

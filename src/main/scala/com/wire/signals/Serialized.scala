@@ -18,12 +18,12 @@ object Serialized {
     future
   }.flatten
 
-  def future[A](key: Any*)(body: => Future[A]): Future[A] = Future {
+  def future[A](key: Any*)(body: => Future[A]): Future[A] = {
     val future = locks.get(key).fold(body) { lock =>
       lock.recover { case _ => }.flatMap(_ => body)
     }
     locks += (key -> future)
     future.onComplete { _ => if (locks.get(key).contains(future)) locks -= key }
     future
-  }.flatten
+  }
 }
