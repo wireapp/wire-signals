@@ -26,7 +26,7 @@ import scala.ref.WeakReference
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
-class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] {self =>
+class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] { self =>
 
   import CancellableFuture._
 
@@ -37,8 +37,9 @@ class CancellableFuture[+A](promise: Promise[A]) extends Awaitable[A] {self =>
   def fail(ex: Exception): Boolean = promise.tryFailure(ex)
 
   def onComplete[B](f: Try[A] => B)(implicit executor: ExecutionContext): Unit = future.onComplete(f)
-
+  
   def foreach[U](pf: PartialFunction[A, U])(implicit executor: ExecutionContext): Unit = future.foreach(pf)
+  def foreach(pf: A => Any)(implicit executor: ExecutionContext): Unit = future.foreach(pf)
 
   def onCancelled(body: => Unit)(implicit executor: ExecutionContext): Unit = future.onComplete {
     case Failure(_: CancelException) => body

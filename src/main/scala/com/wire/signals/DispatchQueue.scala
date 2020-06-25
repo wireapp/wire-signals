@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
 
 trait DispatchQueue extends ExecutionContext {
 
-  private[signals] val name: String = "queue_" + ZSecureRandom.nextInt().toHexString
+  val name: String = "queue_" + ZSecureRandom.nextInt().toHexString
 
   /**
     * Executes a task on this queue.

@@ -6,6 +6,7 @@ version := "0.1"
 scalaVersion in ThisBuild := "2.11.12"
 
 resolvers += Resolver.sonatypeRepo("releases")
+resolvers += Resolver.sonatypeRepo("public")
 resolvers += Resolver.mavenLocal
 
 libraryDependencies ++= Seq(
