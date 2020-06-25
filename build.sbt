@@ -43,7 +43,7 @@ developers := List(
   Developer("makingthematrix", "Maciej Gorywoda", "maciej.gorywoda@wire.com", url("https://github.com/makingthematrix"))
 )
 
-credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
+publishMavenStyle := true
 
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
