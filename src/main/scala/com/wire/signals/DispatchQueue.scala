@@ -1,16 +1,15 @@
 package com.wire.signals
 
+import java.security.SecureRandom
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
-
-import com.wire.signals.utils.ZSecureRandom
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 trait DispatchQueue extends ExecutionContext {
 
-  val name: String = "queue_" + ZSecureRandom.nextInt().toHexString
+  val name: String = "queue_" + DispatchQueue.nextInt().toHexString
 
   /**
     * Executes a task on this queue.
@@ -23,10 +22,13 @@ trait DispatchQueue extends ExecutionContext {
 
   //used for waiting in tests
   def hasRemainingTasks: Boolean = false
-
 }
 
 object DispatchQueue {
+  private lazy val random = new SecureRandom()
+
+  def nextInt(): Int = random.nextInt
+
   def apply(concurrentTasks: Int = 0, executor: ExecutionContext = Threading.executionContext): DispatchQueue = concurrentTasks match {
     case 0 => new UnlimitedDispatchQueue(executor)
     case 1 => new SerialDispatchQueue(executor)
@@ -62,12 +64,12 @@ class LimitedDispatchQueue(concurrencyLimit: Int = 1,
       dispatchExecutor()
     }
 
-    def dispatchExecutor(): Unit = {
+    @tailrec
+    def dispatchExecutor(): Unit =
       if (runningCount.getAndIncrement < concurrencyLimit)
         parent.execute(this)
       else if (runningCount.decrementAndGet() < concurrencyLimit && !queue.isEmpty)
         dispatchExecutor() // to prevent race condition when executor has just finished
-    }
 
     override def run(): Unit = {
 
@@ -101,7 +103,7 @@ object LimitedDispatchQueue {
 }
 
 class SerialDispatchQueue(executor: ExecutionContext = Threading.executionContext,
-                          override val name: String = "serial_" + ZSecureRandom.nextInt().toHexString)
+                          override val name: String = "serial_" + DispatchQueue.nextInt().toHexString)
   extends LimitedDispatchQueue(1, executor)
 
 object SerialDispatchQueue {

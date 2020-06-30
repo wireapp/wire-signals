@@ -26,7 +26,6 @@ import utils._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
-import scala.util.{Failure, Success}
 
 object Signal {
   def apply[A]() = new SourceSignal[A] with NoAutowiring
@@ -70,8 +69,8 @@ object Signal {
 
   def future[A](future: Future[A]): Signal[A] = returning(new Signal[A]) { signal =>
     future.foreach {
-      res => signal.set(Option(res), Some(Threading().mainThread))
-    }(Threading().mainThread)
+      res => signal.set(Option(res), Some(Threading.executionContext))
+    }(Threading.executionContext)
   }
 
   def wrap[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
@@ -162,7 +161,7 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
   }
 
   def head: Future[A] = currentValue match {
-    case Some(v) => CancellableFuture.successful(v)
+    case Some(v) => Future.successful(v)
     case None =>
       val p = Promise[A]()
       val listener = new SignalListener {
@@ -281,7 +280,7 @@ final class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extend
     }
 }
 
-class FlatMapSignal[A, B](source: Signal[A], f: A => Signal[B]) extends Signal[B] with SignalListener {
+final class FlatMapSignal[A, B](source: Signal[A], f: A => Signal[B]) extends Signal[B] with SignalListener {
   private val Empty = Signal.empty[B]
 
   private object wiringMonitor
@@ -341,27 +340,27 @@ abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with Signal
   protected def computeValue(current: Option[A]): Option[A]
 }
 
-class ScanSignal[A, B](source: Signal[A], zero: B, f: (B, A) => B) extends ProxySignal[B](source) {
+final class ScanSignal[A, B](source: Signal[A], zero: B, f: (B, A) => B) extends ProxySignal[B](source) {
   value = Some(zero)
 
   override protected def computeValue(current: Option[B]): Option[B] =
     source.value map { v => f(current.getOrElse(zero), v) } orElse current
 }
 
-class FilterSignal[A](source: Signal[A], f: A => Boolean) extends ProxySignal[A](source) {
+final class FilterSignal[A](source: Signal[A], f: A => Boolean) extends ProxySignal[A](source) {
   override protected def computeValue(current: Option[A]): Option[A] = source.value.filter(f)
 }
 
-class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
+final class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
   override protected def computeValue(current: Option[B]): Option[B] = source.value map f
 }
 
-class Zip2Signal[A, B](s1: Signal[A], s2: Signal[B]) extends ProxySignal[(A, B)](s1, s2) {
+final class Zip2Signal[A, B](s1: Signal[A], s2: Signal[B]) extends ProxySignal[(A, B)](s1, s2) {
   override protected def computeValue(current: Option[(A, B)]): Option[(A, B)] =
     for (a <- s1.value; b <- s2.value) yield (a, b)
 }
 
-class Zip3Signal[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]) extends ProxySignal[(A, B, C)](s1, s2, s3) {
+final class Zip3Signal[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]) extends ProxySignal[(A, B, C)](s1, s2, s3) {
   override protected def computeValue(current: Option[(A, B, C)]): Option[(A, B, C)] =
     for {
       a <- s1.value
@@ -370,7 +369,7 @@ class Zip3Signal[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]) extends P
     } yield (a, b, c)
 }
 
-class Zip4Signal[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D])
+final class Zip4Signal[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D])
   extends ProxySignal[(A, B, C, D)](s1, s2, s3, s4) {
   override protected def computeValue(current: Option[(A, B, C, D)]): Option[(A, B, C, D)] =
     for {
@@ -381,7 +380,7 @@ class Zip4Signal[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Si
     } yield (a, b, c, d)
 }
 
-class Zip5Signal[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E])
+final class Zip5Signal[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E])
   extends ProxySignal[(A, B, C, D, E)](s1, s2, s3, s4, s5) {
   override protected def computeValue(current: Option[(A, B, C, D, E)]): Option[(A, B, C, D, E)] =
     for {
@@ -393,7 +392,7 @@ class Zip5Signal[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4:
     } yield (a, b, c, d, e)
 }
 
-class Zip6Signal[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F]) extends ProxySignal[(A, B, C, D, E, F)](s1, s2, s3, s4, s5, s6) {
+final class Zip6Signal[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F]) extends ProxySignal[(A, B, C, D, E, F)](s1, s2, s3, s4, s5, s6) {
   override protected def computeValue(current: Option[(A, B, C, D, E, F)]): Option[(A, B, C, D, E, F)] = for {
     a <- s1.value
     b <- s2.value
@@ -404,52 +403,12 @@ class Zip6Signal[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], 
   } yield (a, b, c, d, e, f)
 }
 
-class FoldLeftSignal[A, B](sources: Signal[A]*)(v: B)(f: (B, A) => B) extends ProxySignal[B](sources: _*) {
+final class FoldLeftSignal[A, B](sources: Signal[A]*)(v: B)(f: (B, A) => B) extends ProxySignal[B](sources: _*) {
   override protected def computeValue(current: Option[B]): Option[B] =
     sources.foldLeft(Option(v))((mv, signal) => for (a <- mv; b <- signal.value) yield f(a, b))
 }
 
-class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventStream[_]) extends Signal[A] {
-  private val queue = new SerialDispatchQueue(name = "RefreshingSignal")
-
-  @volatile private var loadFuture = CancellableFuture.cancelled[Unit]()
-  @volatile private var subscription = Option.empty[Subscription]
-
-  private def reload(): Unit = subscription.foreach { _ =>
-    loadFuture.cancel()
-    val p = Promise[Unit]
-    val thisReload = CancellableFuture.lift(p.future)
-    loadFuture = thisReload
-    loader.onComplete {
-      case Success(v) if loadFuture eq thisReload =>
-        p.success(set(Some(v), Some(Threading().mainThread)))
-      case Failure(ex) if loadFuture eq thisReload =>
-        //error(l"Error while loading RefreshingSignal", ex)
-        p.failure(ex)
-      case _ =>
-    }(queue)
-  }
-
-  override protected def onWire(): Unit = {
-    super.onWire()
-    Future {
-      subscription = Some(refreshEvent.on(queue)(_ => reload())(EventContext.Global))
-      reload()
-    }(queue)
-  }
-
-  override protected def onUnwire(): Unit = {
-    super.onUnwire()
-    Future {
-      subscription.foreach(_.unsubscribe())
-      subscription = None
-      loadFuture.cancel()
-      value = None
-    }(queue)
-  }
-}
-
-class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends ProxySignal[A](source) {
+final class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends ProxySignal[A](source) {
 
   private object updateMonitor
 
@@ -469,20 +428,5 @@ class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends Proxy
   override protected def computeValue(current: Option[A]): Option[A] = source.value
 }
 
-object RefreshingSignal {
-  def apply[A](loader: => Future[A], refreshEvent: EventStream[_]): RefreshingSignal[A] =
-    new RefreshingSignal(CancellableFuture.lift(loader), refreshEvent)
-}
 
-case class ButtonSignal[A](service: Signal[A], buttonState: Signal[Boolean])(onClick: (A, Boolean) => Unit)
-  extends ProxySignal[Boolean](service, buttonState) {
 
-  def press(): Unit = if (wired) {
-    (service.value, buttonState.value) match {
-      case (Some(s), Some(b)) => onClick(s, b)
-      case _ =>
-    }
-  }
-
-  override protected def computeValue(current: Option[Boolean]): Option[Boolean] = buttonState.value
-}

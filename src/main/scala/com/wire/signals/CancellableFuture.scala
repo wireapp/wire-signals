@@ -215,7 +215,7 @@ object CancellableFuture {
     if (d <= Duration.Zero) successful(())
     else {
       val p = Promise[Unit]()
-      val task = Threading() schedule(() => p.trySuccess(()), d.toMillis)
+      val task = Threading.schedule(() => p.trySuccess(()), d.toMillis)
       new CancellableFuture(p) {
         override def cancel(): Boolean = {
           task.cancel()
@@ -244,7 +244,7 @@ object CancellableFuture {
         startNewTimeoutLoop()
 
         private def startNewTimeoutLoop(): Unit = {
-          currentTask = Threading().schedule(
+          currentTask = Threading.schedule(
             () => {
               if (shouldLoop()) startNewTimeoutLoop()
               else {

@@ -84,7 +84,7 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   def next(implicit context: EventContext): CancellableFuture[E] = {
     val p = Promise[E]()
     val o = apply { p.trySuccess }
-    p.future.onComplete(_ => o.destroy())(Threading().mainThread)
+    p.future.onComplete(_ => o.destroy())(Threading.executionContext)
     new CancellableFuture(p)
   }
 
@@ -97,11 +97,11 @@ abstract class ProxyEventStream[A, E](sources: EventStream[A]*) extends EventStr
   override protected[signals] def onUnwire(): Unit = sources foreach (_.unsubscribe(this))
 }
 
-class MapEventStream[E, V](source: EventStream[E], f: E => V) extends ProxyEventStream[E, V](source) {
+final class MapEventStream[E, V](source: EventStream[E], f: E => V) extends ProxyEventStream[E, V](source) {
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = dispatch(f(event), sourceContext)
 }
 
-class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V]) extends EventStream[V] with EventListener[E] {
+final class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V]) extends EventStream[V] with EventListener[E] {
   @volatile private var mapped: Option[EventStream[V]] = None
 
   private val mappedListener = new EventListener[V] {
@@ -126,7 +126,7 @@ class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream
   }
 }
 
-class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V]) extends ProxyEventStream[E, V](source) {
+final class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V]) extends ProxyEventStream[E, V](source) {
   private val key = randomUUID()
 
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
@@ -134,23 +134,23 @@ class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V]) extends
       case Success(v) => dispatch(v, sourceContext)
       case Failure(_: NoSuchElementException) => // do nothing to allow Future.filter/collect
       case Failure(_) => // error("async map failed", t)
-    }(sourceContext.orElse(executionContext).getOrElse(Threading().mainThread)))
+    }(sourceContext.orElse(executionContext).getOrElse(Threading.executionContext)))
 }
 
-class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V]) extends ProxyEventStream[E, V](source) {
+final class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V]) extends ProxyEventStream[E, V](source) {
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
     if (pf.isDefinedAt(event)) dispatch(pf(event), sourceContext)
 }
 
-class FilterEventStream[E](source: EventStream[E], f: E => Boolean) extends ProxyEventStream[E, E](source) {
+final class FilterEventStream[E](source: EventStream[E], f: E => Boolean) extends ProxyEventStream[E, E](source) {
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = if (f(event)) dispatch(event, sourceContext)
 }
 
-class UnionEventStream[E](sources: EventStream[E]*) extends ProxyEventStream[E, E](sources: _*) {
+final class UnionEventStream[E](sources: EventStream[E]*) extends ProxyEventStream[E, E](sources: _*) {
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = dispatch(event, sourceContext)
 }
 
-class ScanEventStream[E, V](source: EventStream[E], zero: V, f: (V, E) => V) extends ProxyEventStream[E, V] {
+final class ScanEventStream[E, V](source: EventStream[E], zero: V, f: (V, E) => V) extends ProxyEventStream[E, V] {
   @volatile private var value = zero
 
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = {

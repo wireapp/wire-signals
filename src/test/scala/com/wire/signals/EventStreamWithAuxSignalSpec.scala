@@ -17,6 +17,7 @@
  */
 package com.wire.signals
 
+import com.wire.signals.testutils.Publisher
 import org.scalatest._
 
 class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with OptionValues {

@@ -1,8 +1,6 @@
 name := "wire-signals"
 organization in ThisBuild := "com.wire"
 
-version := "0.1"
-
 scalaVersion in ThisBuild := "2.11.12"
 
 resolvers += Resolver.sonatypeRepo("releases")

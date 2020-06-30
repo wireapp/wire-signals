@@ -107,8 +107,13 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
   }
 }
 
-class SignalSubscription[E](source: Signal[E], subscriber: Events.Subscriber[E], executionContext: Option[ExecutionContext] = None)(implicit context: WeakReference[EventContext]) extends BaseSubscription(context) with SignalListener {
-  private def contextDiffersFrom(ctx: Option[ExecutionContext]) = executionContext.exists(ec => !ctx.orElse(source.executionContext).contains(ec))
+final class SignalSubscription[E](source: Signal[E],
+                                 subscriber: Events.Subscriber[E],
+                                 executionContext: Option[ExecutionContext] = None
+                                )(implicit context: WeakReference[EventContext])
+  extends BaseSubscription(context) with SignalListener {
+  private def contextDiffersFrom(ctx: Option[ExecutionContext]) =
+    executionContext.exists(ec => !ctx.orElse(source.executionContext).contains(ec))
 
   override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
     source.value foreach { event =>
@@ -127,15 +132,19 @@ class SignalSubscription[E](source: Signal[E], subscriber: Events.Subscriber[E],
   override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
 }
 
-class StreamSubscription[E](source: EventStream[E], subscriber: Events.Subscriber[E], executionContext: Option[ExecutionContext] = None)(implicit context: WeakReference[EventContext]) extends BaseSubscription(context) with EventListener[E] {
-  private def contextDiffersFrom(ctx: Option[ExecutionContext]) = executionContext.exists(ec => !ctx.orElse(source.executionContext).contains(ec))
+final class StreamSubscription[E](source: EventStream[E],
+                                 subscriber: Events.Subscriber[E],
+                                 executionContext: Option[ExecutionContext] = None
+                                )(implicit context: WeakReference[EventContext])
+  extends BaseSubscription(context) with EventListener[E] {
+  private def contextDiffersFrom(ctx: Option[ExecutionContext]) =
+    executionContext.exists(ec => !ctx.orElse(source.executionContext).contains(ec))
 
-  override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit = {
+  override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
     if (subscribed) {
       if (contextDiffersFrom(currentContext)) Future(if (subscribed) Try(subscriber(event)))(executionContext.get)
       else subscriber(event)
     }
-  }
 
   override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
 

@@ -7,6 +7,14 @@ import scala.concurrent.{ExecutionContext, Future}
 
 package object testutils {
 
+  type Publisher[E] = SourceStream[E]
+
+  object Publisher {
+    def apply[E](ec: Option[ExecutionContext]): Publisher[E] = new SourceStream[E] {
+      override val executionContext: Option[ExecutionContext] = ec
+    }
+  }
+
   implicit class SignalToSink[A](val signal: Signal[A]) extends AnyVal {
     def sink: SignalSink[A] = returning(new SignalSink[A])(_.subscribe(signal)(EventContext.Global))
   }

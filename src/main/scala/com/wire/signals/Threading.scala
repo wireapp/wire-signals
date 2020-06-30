@@ -1,24 +1,14 @@
 package com.wire.signals
 
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.ExecutorService
 import java.util.{Timer, TimerTask}
-
-import com.wire.signals.utils.returning
 
 import scala.concurrent.ExecutionContext
 
-trait Threading {
-  def mainThread: ExecutionContext
-
-  def schedule(f: () => Any, delay: Long): TimerTask
-
-  implicit val executionContext: ExecutionContext = mainThread
-}
-
-class DefaultThreading(override val mainThread: ExecutionContext = ExecutionContext.global) extends Threading {
+object Threading {
   private val timer: Timer = new Timer()
 
-  override def schedule(f: () => Any, delay: Long): TimerTask = {
+  def schedule(f: () => Any, delay: Long): TimerTask = {
     val newTask = new TimerTask {
       override def run(): Unit = f()
     }
@@ -27,22 +17,19 @@ class DefaultThreading(override val mainThread: ExecutionContext = ExecutionCont
 
     newTask
   }
-}
 
-object Threading {
-  private var _instance = Option.empty[Threading]
+  private var _instance = Option.empty[DispatchQueue]
 
-  def set(threading: Threading): Unit = {
-    _instance = Some(threading)
+  def set(queue: DispatchQueue): Unit = {
+    _instance = Some(queue)
   }
 
-  def apply(): Threading = _instance match {
-    case Some(threading) => threading
-    case None =>
-      returning(new DefaultThreading) { t => _instance = Option(t) }
+  def apply(): DispatchQueue = _instance match {
+    case Some(queue) => queue
+    case None        => Default
   }
 
-  implicit lazy val executionContext: ExecutionContext = apply().mainThread
+  implicit lazy val executionContext: ExecutionContext = apply()
 
   val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors())
 
@@ -51,9 +38,5 @@ object Threading {
     override def execute(runnable: Runnable): Unit = service.execute(runnable)
   }
 
-  /**
-    * Thread pool for non-blocking background tasks.
-    */
-  val ThreadPool: DispatchQueue = new LimitedDispatchQueue(Cpus, executionContext(Executors.newCachedThreadPool()), "CpuThreadPool")
-
+  val Default: DispatchQueue = DispatchQueue(0, ExecutionContext.global)
 }

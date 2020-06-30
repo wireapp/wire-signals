@@ -19,6 +19,7 @@ package com.wire.signals
 
 import org.scalatest._
 import Threading._
+import com.wire.signals.testutils.Publisher
 import utils._
 
 import scala.concurrent.Promise
@@ -100,6 +101,7 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
       withDelay {
         sub.value.value shouldBe Seq(42, 3, 4, 7)
       }
+      Thread.sleep(333L)
       aggregator.value.value shouldBe Seq(42, 3, 4, 7)
 
       aggregator.unsubscribeAll()

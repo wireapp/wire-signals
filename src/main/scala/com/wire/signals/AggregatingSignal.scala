@@ -50,7 +50,7 @@ class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B,
   }(context)
 
 
-  private lazy val context = executionContext.getOrElse(Threading().mainThread)
+  private lazy val context = executionContext.getOrElse(Threading.executionContext)
 
   override def onWire(): Unit = {
     stash = Vector.empty
