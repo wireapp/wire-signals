@@ -20,7 +20,6 @@ package com.wire.signals
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, CyclicBarrier, TimeUnit}
 
-import utils._
 import testutils._
 import org.scalatest._
 import Threading.executionContext
@@ -156,7 +155,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
         sub.destroy()
       }))
       val adding = Future.sequence(Seq.fill(25)(add(chaosBarrier)))
-      val sending = Future.traverse(1 to 25)(n => Future(blocking {
+      val sending = Future.traverse((1 to 25).toList)(n => Future(blocking {
         chaosBarrier.await()
         s ! n
       }))

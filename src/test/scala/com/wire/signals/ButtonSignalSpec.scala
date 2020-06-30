@@ -18,7 +18,7 @@
 package com.wire.signals
 
 import org.scalatest.{FeatureSpec, Matchers}
-import utils._
+import testutils._
 
 class ButtonSignalSpec extends FeatureSpec with Matchers {
 

@@ -67,7 +67,6 @@ trait EventContext {
     }
   }
 
-
   def unregister(observer: Subscription): Unit = lock.synchronized(observers -= observer)
 
   def isContextStarted: Boolean = lock.synchronized(started && !destroyed)

@@ -73,6 +73,8 @@ object Signal {
     }(Threading.executionContext)
   }
 
+  def apply[A](f: Future[A]): Signal[A] = future(f)
+
   def wrap[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
     private lazy val subscription = source {
       publish
@@ -83,6 +85,8 @@ object Signal {
     override protected def onUnwire(): Unit = subscription.disable()
   }
 
+  def apply[A](initial: A, source: EventStream[A]): Signal[A] = wrap(initial, source)
+
   def wrap[A](source: EventStream[A]): Signal[A] = new Signal[A](None) {
     private lazy val subscription = source {
       publish
@@ -92,6 +96,8 @@ object Signal {
 
     override protected def onUnwire(): Unit = subscription.disable()
   }
+
+  def apply[A](source: EventStream[A]): Signal[A] = wrap(source)
 }
 
 class SourceSignal[A](v: Option[A] = None) extends Signal(v) {
@@ -134,7 +140,6 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       notifyListeners(currentContext)
     }
 
-
   private[signals] def notifyListeners(currentContext: Option[ExecutionContext]): Unit =
     super.notifyListeners(_.changed(currentContext))
 
@@ -172,6 +177,8 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       value foreach p.trySuccess
       p.future
   }
+
+  def future: Future[A] = head
 
   def zip[B](s: Signal[B]): Signal[(A, B)] = new Zip2Signal[A, B](this, s)
 
