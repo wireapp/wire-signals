@@ -38,7 +38,7 @@ object DispatchQueue {
 
 class UnlimitedDispatchQueue(executor: ExecutionContext = Threading.executionContext,
                              override val name: String = "UnlimitedQueue") extends DispatchQueue {
-  override def execute(runnable: Runnable): Unit = executor.execute(DispatchQueueStats(name, runnable))
+  override def execute(runnable: Runnable): Unit = executor.execute(runnable)
 }
 
 /**
@@ -60,7 +60,7 @@ class LimitedDispatchQueue(concurrencyLimit: Int = 1,
     val runningCount = new AtomicInteger(0)
 
     def dispatch(runnable: Runnable): Unit = {
-      queue.add(DispatchQueueStats(name, runnable))
+      queue.add(runnable)
       dispatchExecutor()
     }
 
