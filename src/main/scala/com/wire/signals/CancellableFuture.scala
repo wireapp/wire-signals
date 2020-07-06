@@ -254,7 +254,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     * @see com.wire.signals.EventContext
     * @see com.wire.signals.Events
     */
-  def withAutoCanceling(implicit eventContext: EventContext): Subscription =
+  def withAutoCanceling(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new BaseSubscription(WeakReference(eventContext)) {
       override def onUnsubscribe(): Unit = {
         cancel()

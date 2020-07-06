@@ -49,16 +49,16 @@ trait Subscription {
 trait EventSource[E] {
   val executionContext = Option.empty[ExecutionContext]
 
-  def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription
+  def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription
 
-  def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription
+  def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription
 }
 
 trait ForcedEventSource[E] extends EventSource[E] {
-  abstract override def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription =
+  abstract override def on(ec: ExecutionContext)(subscriber: Events.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
     returning(super.on(ec)(subscriber))(_.disablePauseWithContext())
 
-  abstract override def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext): Subscription =
+  abstract override def apply(subscriber: Events.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
     returning(super.apply(subscriber))(_.disablePauseWithContext())
 }
 
@@ -67,29 +67,26 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
   private var enabled = false
   private var pauseWithContext = true
 
-  context.get foreach (_.register(this))
+  context.get.foreach(_.register(this))
 
   protected[signals] def onSubscribe(): Unit
 
   protected[signals] def onUnsubscribe(): Unit
 
-  def subscribe(): Unit =
-    if (enabled && !subscribed) {
-      subscribed = true
-      onSubscribe()
-    }
+  def subscribe(): Unit = if (enabled && !subscribed) {
+    subscribed = true
+    onSubscribe()
+  }
 
-  def unsubscribe(): Unit =
-    if (subscribed && (pauseWithContext || !enabled)) {
-      subscribed = false
-      onUnsubscribe()
-    }
+  def unsubscribe(): Unit = if (subscribed && (pauseWithContext || !enabled)) {
+    subscribed = false
+    onUnsubscribe()
+  }
 
-  def enable(): Unit =
-    context.get foreach { context =>
-      enabled = true
-      if (context.isContextStarted) subscribe()
-    }
+  def enable(): Unit = context.get.foreach { context =>
+    enabled = true
+    if (context.isContextStarted) subscribe()
+  }
 
   def disable(): Unit = {
     enabled = false
@@ -98,7 +95,7 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
 
   def destroy(): Unit = {
     disable()
-    context.get foreach (_.unregister(this))
+    context.get.foreach(_.unregister(this))
   }
 
   def disablePauseWithContext(): Unit = {
@@ -112,15 +109,16 @@ final class SignalSubscription[E](source: Signal[E],
                                  executionContext: Option[ExecutionContext] = None
                                 )(implicit context: WeakReference[EventContext])
   extends BaseSubscription(context) with SignalListener {
-  private def contextDiffersFrom(ctx: Option[ExecutionContext]) =
-    executionContext.exists(ec => !ctx.orElse(source.executionContext).contains(ec))
 
   override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
-    source.value foreach { event =>
-      if (subscribed) {
-        if (contextDiffersFrom(currentContext)) Future(if (subscribed) Try(subscriber(event)))(executionContext.get)
-        else subscriber(event)
-      }
+    source.value.foreach { event =>
+      if (subscribed)
+        executionContext match {
+          case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+            Future(if (subscribed) Try(subscriber(event)))(ec)
+          case _ =>
+            subscriber(event)
+        }
     }
   }
 
@@ -137,14 +135,15 @@ final class StreamSubscription[E](source: EventStream[E],
                                  executionContext: Option[ExecutionContext] = None
                                 )(implicit context: WeakReference[EventContext])
   extends BaseSubscription(context) with EventListener[E] {
-  private def contextDiffersFrom(ctx: Option[ExecutionContext]) =
-    executionContext.exists(ec => !ctx.orElse(source.executionContext).contains(ec))
 
   override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
-    if (subscribed) {
-      if (contextDiffersFrom(currentContext)) Future(if (subscribed) Try(subscriber(event)))(executionContext.get)
-      else subscriber(event)
-    }
+    if (subscribed)
+      executionContext match {
+        case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+          Future(if (subscribed) Try(subscriber(event)))(ec)
+        case _ =>
+          subscriber(event)
+      }
 
   override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
 

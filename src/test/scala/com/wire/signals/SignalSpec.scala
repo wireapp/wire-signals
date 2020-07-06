@@ -29,8 +29,6 @@ import scala.concurrent._
 import scala.concurrent.duration._
 
 class SignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter with BeforeAndAfterEach {
-  implicit val ec: EventContext = EventContext.Global
-
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
@@ -183,7 +181,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
     scenario("Concurrent updates with incremental values with serial dispatch queue") {
-      val dispatcher = new SerialDispatchQueue()
+      val dispatcher = DispatchQueue(1)
       incrementalUpdates((s, r) => s.on(dispatcher) {
         r.add
       })
@@ -196,7 +194,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
     scenario("Concurrent updates with incremental values and onChanged listener with serial dispatch queue") {
-      val dispatcher = new SerialDispatchQueue()
+      val dispatcher = DispatchQueue(1)
       incrementalUpdates((s, r) => s.onChanged.on(dispatcher) {
         r.add
       })

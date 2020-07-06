@@ -95,8 +95,6 @@ class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors wit
     }
   }
 
-  implicit val ec: EventContext = EventContext.Global
-
   class Spy {
     val received = new AtomicReference(Vector.empty[(Int, Instant)])
     val capture: Int => Unit = { value => compareAndSet(received)(_ :+ (value -> Instant.now)) }

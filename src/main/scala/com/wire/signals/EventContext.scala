@@ -78,7 +78,7 @@ object EventContext {
     implicit val global: EventContext = EventContext.Global
   }
 
-  object Global extends EventContext {
+  final object Global extends EventContext {
     override def register(observer: Subscription): Unit = () // do nothing, global context will never need the observers (can not be stopped)
     override def unregister(observer: Subscription): Unit = ()
 

@@ -193,7 +193,7 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
     }
   }
 
-  def foreach(f: A => Unit)(implicit eventContext: EventContext): Subscription = apply(f)
+  def foreach(f: A => Unit)(implicit eventContext: EventContext = EventContext.Global): Subscription = apply(f)
 
   def flatMap[B](f: A => Signal[B]): Signal[B] = new FlatMapSignal[A, B](this, f)
 
@@ -213,7 +213,7 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
 
   def either[B](right: Signal[B]): Signal[Either[A, B]] = map(Left(_): Either[A, B]).orElse(right.map(Right.apply))
 
-  def pipeTo(sourceSignal: SourceSignal[A])(implicit ec: EventContext): Unit = foreach(sourceSignal ! _)
+  def pipeTo(sourceSignal: SourceSignal[A])(implicit ec: EventContext = EventContext.Global): Unit = foreach(sourceSignal ! _)
 
   def onPartialUpdate[B](select: A => B): Signal[A] = new PartialUpdateSignal[A, B](this)(select)
 
@@ -230,10 +230,10 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
 
   protected def onUnwire(): Unit = ()
 
-  override def on(ec: ExecutionContext)(subscriber: Subscriber[A])(implicit eventContext: EventContext): Subscription =
+  override def on(ec: ExecutionContext)(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
-  override def apply(subscriber: Subscriber[A])(implicit eventContext: EventContext): Subscription =
+  override def apply(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[A](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
   protected def publish(value: A): Unit = set(Some(value))

@@ -77,12 +77,16 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
 
   protected def publish(event: E): Unit = dispatch(event, None)
 
-  override def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription = returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+  override def on(ec: ExecutionContext)
+                 (subscriber: Subscriber[E])
+                 (implicit eventContext: EventContext = EventContext.Global): Subscription =
+    returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
-  override def apply(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription =
+  override def apply(subscriber: Subscriber[E])
+                    (implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
-  def foreach(op: E => Unit)(implicit context: EventContext): Subscription = apply(op)(context)
+  def foreach(op: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription = apply(op)(context)
 
   def map[V](f: E => V): EventStream[V] = new MapEventStream[E, V](this, f)
   def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
@@ -93,9 +97,9 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   def scan[V](zero: V)(f: (V, E) => V): EventStream[V] = new ScanEventStream[E, V](this, zero, f)
   def zip(stream: EventStream[E]): EventStream[E] = new ZipEventStream[E](this, stream)
 
-  def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext): Unit = foreach(sourceStream ! _)
+  def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Unit = foreach(sourceStream ! _)
 
-  def next(implicit context: EventContext): CancellableFuture[E] = {
+  def next(implicit context: EventContext = EventContext.Global): CancellableFuture[E] = {
     val p = Promise[E]()
     val o = apply { p.trySuccess }
     p.future.onComplete(_ => o.destroy())(Threading.executionContext)
