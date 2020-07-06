@@ -29,7 +29,7 @@ package object testutils {
   class SignalSink[A] {
     @volatile private var sub = Option.empty[Subscription]
 
-    def subscribe(s: Signal[A])(implicit ctx: EventContext): Unit = sub = Some(s(v => value = Some(v)))
+    def subscribe(s: Signal[A])(implicit ctx: EventContext = EventContext.Global): Unit = sub = Some(s(v => value = Some(v)))
 
     def unsubscribe(): Unit = sub.foreach { s =>
       s.destroy()
@@ -50,10 +50,8 @@ package object testutils {
   }
 
   implicit class RichOption[A](val opt: Option[A]) extends AnyVal {
-    @inline final def fold2[B](ifEmpty: => B, f: A => B): B = if (opt.isEmpty) ifEmpty else f(opt.get) // option's catamorphism with better type inference properties than the one provided by the std lib
-    def mapFuture[B](f: A => Future[B])(implicit ec: ExecutionContext): Future[Option[B]] = flatMapFuture(f(_).map(Some(_)))
-
-    def flatMapFuture[B](f: A => Future[Option[B]]): Future[Option[B]] = fold2(Future.successful(None), f(_))
+    @inline final def fold2[B](ifEmpty: => B, f: A => B): B = if (opt.isEmpty) ifEmpty else f(opt.get)
+    // option's catamorphism with better type inference properties than the one provided by the std lib
   }
 
   @tailrec

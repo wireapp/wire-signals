@@ -20,7 +20,6 @@ package com.wire.signals
 import org.scalatest._
 
 class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with BeforeAndAfter {
-  implicit val ec: EventContext = EventContext.Global
 
   private var received = Vector.empty[Int]
   private val capture = (value: Int) => received :+= value

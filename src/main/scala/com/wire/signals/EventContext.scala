@@ -37,7 +37,7 @@ trait EventContext {
   def onContextStart(): Unit = lock.synchronized {
     if (!started) {
       started = true
-      observers.foreach(_.subscribe()) // XXX during this, subscribe may call Observable#onWire which in turn may call register which will change observers
+      observers.foreach(_.subscribe())
     }
   }
 
@@ -78,7 +78,7 @@ object EventContext {
     implicit val global: EventContext = EventContext.Global
   }
 
-  object Global extends EventContext {
+  final object Global extends EventContext {
     override def register(observer: Subscription): Unit = () // do nothing, global context will never need the observers (can not be stopped)
     override def unregister(observer: Subscription): Unit = ()
 

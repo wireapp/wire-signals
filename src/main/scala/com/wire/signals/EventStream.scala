@@ -26,11 +26,6 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
 import scala.util.{Failure, Success}
 
-private[signals] trait EventListener[E] {
-  // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
-  protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit
-}
-
 object EventStream {
   def apply[A]() = new SourceStream[A]
 
@@ -77,12 +72,16 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
 
   protected def publish(event: E): Unit = dispatch(event, None)
 
-  override def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription = returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+  override def on(ec: ExecutionContext)
+                 (subscriber: Subscriber[E])
+                 (implicit eventContext: EventContext = EventContext.Global): Subscription =
+    returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
-  override def apply(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription =
+  override def apply(subscriber: Subscriber[E])
+                    (implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
-  def foreach(op: E => Unit)(implicit context: EventContext): Subscription = apply(op)(context)
+  def foreach(op: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription = apply(op)(context)
 
   def map[V](f: E => V): EventStream[V] = new MapEventStream[E, V](this, f)
   def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
@@ -93,9 +92,9 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   def scan[V](zero: V)(f: (V, E) => V): EventStream[V] = new ScanEventStream[E, V](this, zero, f)
   def zip(stream: EventStream[E]): EventStream[E] = new ZipEventStream[E](this, stream)
 
-  def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext): Unit = foreach(sourceStream ! _)
+  def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Unit = foreach(sourceStream ! _)
 
-  def next(implicit context: EventContext): CancellableFuture[E] = {
+  def next(implicit context: EventContext = EventContext.Global): CancellableFuture[E] = {
     val p = Promise[E]()
     val o = apply { p.trySuccess }
     p.future.onComplete(_ => o.destroy())(Threading.executionContext)
@@ -123,29 +122,6 @@ final private[signals] class MapEventStream[E, V](source: EventStream[E], f: E =
     dispatch(f(event), sourceContext)
 }
 
-final private[signals] class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
-  extends EventStream[V] with EventListener[E] {
-  @volatile private var mapped: Option[EventStream[V]] = None
-
-  private val mappedListener = new EventListener[V] {
-    override protected[signals] def onEvent(event: V, currentContext: Option[ExecutionContext]): Unit =
-      dispatch(event, currentContext)
-  }
-
-  override protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit = {
-    mapped.foreach(_.unsubscribe(mappedListener))
-    mapped = Some(returning(f(event))(_.subscribe(mappedListener)))
-  }
-
-  override protected def onWire(): Unit = source.subscribe(this)
-
-  override protected def onUnwire(): Unit = {
-    mapped.foreach(_.unsubscribe(mappedListener))
-    mapped = None
-    source.unsubscribe(this)
-  }
-}
-
 final private[signals] class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V])
   extends ProxyEventStream[E, V](source) {
   private val key = randomUUID()
@@ -154,7 +130,7 @@ final private[signals] class FutureEventStream[E, V](source: EventStream[E], f: 
     Serialized.future(key)(f(event).andThen {
       case Success(v) => dispatch(v, sourceContext)
       case Failure(_: NoSuchElementException) => // do nothing to allow Future.filter/collect
-      case Failure(_) => // error("async map failed", t)
+      case Failure(_) =>
     }(sourceContext.orElse(executionContext).getOrElse(Threading.executionContext)))
 }
 

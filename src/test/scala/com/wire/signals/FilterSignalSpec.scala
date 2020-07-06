@@ -21,8 +21,6 @@ import org.scalatest._
 
 class FilterSignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
 
-  implicit val ec: EventContext = EventContext.Global
-
   feature("Filtering signals") {
     scenario("Value of a filtered signal") {
       val source = Signal(1)

@@ -31,7 +31,7 @@ case class Follower[A](signal: Signal[A]) {
 
   def receive(a: A): Unit = compareAndSet(receivedValues)(_ :+ a)
 
-  def subscribed(implicit ec: EventContext): Follower[A] = returning(this)(_ => signal {
+  def subscribed(implicit ec: EventContext = EventContext.Global): Follower[A] = returning(this)(_ => signal {
     receive
   })
 }

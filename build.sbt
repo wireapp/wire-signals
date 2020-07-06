@@ -10,7 +10,7 @@ resolvers += Resolver.sonatypeRepo("public")
 resolvers += Resolver.mavenLocal
 
 libraryDependencies ++= Seq(
-  "org.threeten"                  %  "threetenbp"            % "1.3.+"            % Provided,
+  "org.threeten"                  %  "threetenbp"            % "1.4.4"            % Provided,
   "org.scala-lang"                %  "scala-reflect"          % (scalaVersion in ThisBuild).value % Provided,
   "org.scala-lang"                %  "scala-compiler"        % (scalaVersion in ThisBuild).value % Provided,
 

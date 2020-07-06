@@ -4,7 +4,7 @@ import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
 class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventStream[_]) extends Signal[A] {
-  private val queue = new SerialDispatchQueue(name = "RefreshingSignal")
+  private val queue = DispatchQueue(1, "RefreshingSignal")
 
   @volatile private var loadFuture = CancellableFuture.cancelled[Unit]()
   @volatile private var subscription = Option.empty[Subscription]
