@@ -25,9 +25,7 @@ class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) ext
       dispatch((event, aux.currentValue), sourceContext)
   }
 
-  protected val auxListener: SignalListener = new SignalListener {
-    override def changed(currentContext: Option[ExecutionContext]): Unit = ()
-  }
+  protected val auxListener: SignalListener = SignalListener()
 
   override protected def onWire(): Unit = {
     source.subscribe(listener)

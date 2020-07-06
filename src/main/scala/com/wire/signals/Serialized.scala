@@ -4,11 +4,11 @@ import scala.collection.mutable
 import scala.concurrent.Future
 
 object Serialized {
-  private implicit val dispatcher: SerialDispatchQueue = new SerialDispatchQueue(name = "Serializing")
+  private implicit val dispatcher: DispatchQueue = SerialDispatchQueue("Serialized")
 
-  private val locks = new mutable.HashMap[Any, Future[_]]
+  private val locks = mutable.HashMap[String, Future[_]]()
 
-  def apply[A](key: Any*)(body: => CancellableFuture[A]): CancellableFuture[A] = dispatcher {
+  def apply[A](key: String)(body: => CancellableFuture[A]): CancellableFuture[A] = dispatcher {
     val future = locks.get(key).fold(body) { lock =>
       CancellableFuture.lift(lock.recover { case _ => }) flatMap (_ => body)
     }
@@ -18,7 +18,7 @@ object Serialized {
     future
   }.flatten
 
-  def future[A](key: Any*)(body: => Future[A]): Future[A] = {
+  def future[A](key: String)(body: => Future[A]): Future[A] = {
     val future = locks.get(key).fold(body) { lock =>
       lock.recover { case _ => }.flatMap(_ => body)
     }

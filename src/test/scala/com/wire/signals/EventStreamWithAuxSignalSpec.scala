@@ -22,8 +22,8 @@ import org.scalatest._
 
 class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with OptionValues {
 
-  private lazy val e = Publisher[String](None)
   private lazy val aux = new SourceSignal[Int]
+  private lazy val e = Publisher[String](None)
 
   private lazy val r = new EventStreamWithAuxSignal(e, aux)
 

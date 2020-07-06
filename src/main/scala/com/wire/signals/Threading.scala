@@ -1,7 +1,8 @@
 package com.wire.signals
 
-import java.util.concurrent.ExecutorService
 import java.util.{Timer, TimerTask}
+
+import com.wire.signals.DispatchQueue.UNLIMITED
 
 import scala.concurrent.ExecutionContext
 
@@ -20,7 +21,7 @@ object Threading {
 
   private var _instance = Option.empty[DispatchQueue]
 
-  def set(queue: DispatchQueue): Unit = {
+  def setAsDefault(queue: DispatchQueue): Unit = {
     _instance = Some(queue)
   }
 
@@ -31,12 +32,7 @@ object Threading {
 
   implicit lazy val executionContext: ExecutionContext = apply()
 
-  val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors())
+  val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
 
-  def executionContext(service: ExecutorService): ExecutionContext = new ExecutionContext {
-    override def reportFailure(cause: Throwable): Unit = {} // TODO: allow for tracking
-    override def execute(runnable: Runnable): Unit = service.execute(runnable)
-  }
-
-  val Default: DispatchQueue = DispatchQueue(0, ExecutionContext.global)
+  val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global, None)
 }

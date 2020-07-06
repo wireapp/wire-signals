@@ -21,7 +21,7 @@ trait EventContext {
 
   private object lock
 
-  private[this] var started = false
+  private[this] var started = true
   private[this] var destroyed = false
   private[this] var observers = Set.empty[Subscription]
 
@@ -37,10 +37,9 @@ trait EventContext {
   def onContextStart(): Unit = lock.synchronized {
     if (!started) {
       started = true
-      observers.foreach(_.subscribe()) // XXX during this, subscribe may call Observable#onWire which in turn may call register which will change observers
+      observers.foreach(_.subscribe())
     }
   }
-
 
   def onContextStop(): Unit = lock.synchronized {
     if (started) {
@@ -49,14 +48,12 @@ trait EventContext {
     }
   }
 
-
   def onContextDestroy(): Unit = lock.synchronized {
     destroyed = true
     val observersToDestroy = observers
     observers = Set.empty
     observersToDestroy.foreach(_.destroy())
   }
-
 
   def register(observer: Subscription): Unit = lock.synchronized {
     assert(!destroyed, "context already destroyed")
@@ -74,19 +71,24 @@ trait EventContext {
 
 object EventContext {
 
+  def apply(started: Boolean = true): EventContext = new EventContext {
+    if (started) onContextStart()
+  }
+
   object Implicits {
     implicit val global: EventContext = EventContext.Global
   }
 
-  object Global extends EventContext {
-    override def register(observer: Subscription): Unit = () // do nothing, global context will never need the observers (can not be stopped)
-    override def unregister(observer: Subscription): Unit = ()
+  final object Global extends EventContext {
+    override def register(observer: Subscription): Unit = {} // do nothing, global context will never need the observers (can not be stopped)
 
-    override def onContextStart(): Unit = ()
+    override def unregister(observer: Subscription): Unit = {}
 
-    override def onContextStop(): Unit = ()
+    override def onContextStart(): Unit = {}
 
-    override def onContextDestroy(): Unit = ()
+    override def onContextStop(): Unit = {}
+
+    override def onContextDestroy(): Unit = {}
 
     override def isContextStarted: Boolean = true
   }

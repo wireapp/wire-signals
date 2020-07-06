@@ -21,8 +21,6 @@ import org.scalatest._
 
 class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
 
-  implicit val ec: EventContext = EventContext.Global
-
   feature("Uninitialized signals") {
     scenario("Value of an uninitialized signal") {
       val signal = Signal[Int]()

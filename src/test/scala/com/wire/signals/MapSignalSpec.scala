@@ -20,9 +20,6 @@ package com.wire.signals
 import org.scalatest._
 
 class MapSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
-
-  implicit val ec: EventContext = EventContext.Global
-
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 

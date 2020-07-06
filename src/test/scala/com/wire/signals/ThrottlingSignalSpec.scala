@@ -19,7 +19,6 @@ package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicReference
 
-import utils._
 import com.wire.signals.testutils._
 
 import org.scalatest._
@@ -94,8 +93,6 @@ class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors wit
       s.isWired shouldBe false
     }
   }
-
-  implicit val ec: EventContext = EventContext.Global
 
   class Spy {
     val received = new AtomicReference(Vector.empty[(Int, Instant)])

@@ -23,24 +23,22 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import org.threeten.bp.Instant.now
 
+import scala.concurrent.ExecutionContext
+
 case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC())
   extends SourceSignal[Instant](Some(now(clock))) {
 
   private var delay = CancellableFuture.successful({})
 
-  def refresh(): Unit = if (wired) {
+  def refresh()(implicit ec: ExecutionContext): Unit = if (wired) {
     publish(now(clock))
     delay.cancel()
-    delay = CancellableFuture.delayed(interval)(refresh())(Threading.executionContext)
-  } else {
-   // info(l"Cannot publish ClockSignal value: not wired")
+    delay = CancellableFuture.delayed(interval)(refresh())
   }
 
   //To force a refresh in tests when clock is advanced
-  def check(): Unit = {
-    val lastRefresh = value.getOrElse(Instant.EPOCH)
-    if (interval <= (now(clock).toEpochMilli - lastRefresh.toEpochMilli).millis) refresh()
-  }
+  def checkAndRefresh()(implicit ec: ExecutionContext): Unit =
+    if (interval <= (now(clock).toEpochMilli - value.getOrElse(Instant.EPOCH).toEpochMilli).millis) refresh()
 
-  override def onWire(): Unit = refresh()
+  override def onWire(): Unit = refresh()(Threading.executionContext)
 }
