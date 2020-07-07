@@ -32,7 +32,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
-  private val eventContext = new EventContext() {}
+  private val eventContext = EventContext()
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()

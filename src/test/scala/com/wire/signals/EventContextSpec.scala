@@ -72,7 +72,7 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
     }
 
     scenario("Pausing, resuming and destroying a normal event context") {
-      implicit val ec: EventContext = new EventContext {}
+      implicit val ec: EventContext = EventContext()
       val s = Signal(0)
       s(capture)
 
@@ -104,7 +104,7 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
     }
 
     scenario("Pausing, resuming and destroying a normal event context, but with forced event sources") {
-      implicit val ec: EventContext = new EventContext {}
+      implicit val ec: EventContext = EventContext()
       val s = new SourceSignal[Int](Some(0)) with ForcedEventSource[Int]
       s(capture)
 
