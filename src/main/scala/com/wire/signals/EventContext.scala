@@ -45,7 +45,7 @@ class EventContextImpl extends EventContext {
   override def onContextStart(): Unit = lock.synchronized {
     if (!started) {
       started = true
-      observers.foreach(_.subscribe()) // XXX during this, subscribe may call Observable#onWire which in turn may call register which will change observers
+      observers.foreach(_.subscribe())
     }
   }
 

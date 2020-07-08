@@ -353,7 +353,7 @@ final private[signals] class FilterSignal[A](source: Signal[A], f: A => Boolean)
   override protected def computeValue(current: Option[A]): Option[A] = source.value.filter(f)
 }
 
-final private[signals]class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
+final private[signals] class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
   override protected def computeValue(current: Option[B]): Option[B] = source.value map f
 }
 

@@ -3,7 +3,7 @@ package com.wire.signals
 import scala.collection.mutable
 import scala.concurrent.Future
 
-object Serialized {
+private[signals] object Serialized {
   private implicit val dispatcher: DispatchQueue = DispatchQueue(1 , "Serializing")
 
   private val locks = new mutable.HashMap[Any, Future[_]]
