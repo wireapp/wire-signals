@@ -19,7 +19,6 @@ package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-import CancellableFuture.delayed
 import Events.Subscriber
 import utils._
 
@@ -274,7 +273,7 @@ final private[signals] class ThrottlingSignal[A](source: Signal[A], delay: Finit
     if (waiting.compareAndSet(false, true)) {
       val context = ec.getOrElse(Threading.executionContext)
       val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
-      delayed(d.millis) {
+      CancellableFuture.delayed(d.millis) {
         lastDispatched = System.currentTimeMillis()
         waiting.set(false)
         super.notifyListeners(Some(context))

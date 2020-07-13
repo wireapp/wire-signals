@@ -26,10 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
 import scala.util.{Failure, Success}
 
-private[signals] trait EventListener[E] {
-  // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
-  protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit
-}
+
 
 object EventStream {
   def apply[A]() = new SourceStream[A]
