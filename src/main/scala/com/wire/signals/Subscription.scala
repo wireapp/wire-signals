@@ -17,6 +17,7 @@
  */
 package com.wire.signals
 
+import com.wire.signals.Subscription.Subscriber
 import com.wire.signals.utils.returning
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -26,28 +27,28 @@ import scala.util.Try
 object Subscription {
   type Subscriber[-E] = E => Unit
 
-  def apply[E](source: EventStream[E], subscriber: Subscription.Subscriber[E]): EventStreamSubscription[E] =
+  def apply[E](source: EventStream[E], subscriber: Subscriber[E]): EventStreamSubscription[E] =
     new EventStreamSubscription[E](source, subscriber, None)(WeakReference(EventContext.Global))
 
-  def apply[E](source: EventStream[E], subscriber: Subscription.Subscriber[E], evc: EventContext): EventStreamSubscription[E] =
+  def apply[E](source: EventStream[E], subscriber: Subscriber[E], evc: EventContext): EventStreamSubscription[E] =
     new EventStreamSubscription[E](source, subscriber, None)(WeakReference(evc))
 
-  def apply[E](source: EventStream[E], subscriber: Subscription.Subscriber[E], ec: ExecutionContext): EventStreamSubscription[E] =
+  def apply[E](source: EventStream[E], subscriber: Subscriber[E], ec: ExecutionContext): EventStreamSubscription[E] =
     new EventStreamSubscription[E](source, subscriber, Some(ec))(WeakReference(EventContext.Global))
 
-  def apply[E](source: EventStream[E], subscriber: Subscription.Subscriber[E], ec: ExecutionContext, evc: EventContext): EventStreamSubscription[E] =
+  def apply[E](source: EventStream[E], subscriber: Subscriber[E], ec: ExecutionContext, evc: EventContext): EventStreamSubscription[E] =
     new EventStreamSubscription[E](source, subscriber, Some(ec))(WeakReference(evc))
 
-  def apply[E](source: Signal[E], subscriber: Subscription.Subscriber[E]): SignalSubscription[E] =
+  def apply[E](source: Signal[E], subscriber: Subscriber[E]): SignalSubscription[E] =
     new SignalSubscription[E](source, subscriber, None)(WeakReference(EventContext.Global))
 
-  def apply[E](source: Signal[E], subscriber: Subscription.Subscriber[E], evc: EventContext): SignalSubscription[E] =
+  def apply[E](source: Signal[E], subscriber: Subscriber[E], evc: EventContext): SignalSubscription[E] =
     new SignalSubscription[E](source, subscriber, None)(WeakReference(evc))
 
-  def apply[E](source: Signal[E], subscriber: Subscription.Subscriber[E], ec: ExecutionContext): SignalSubscription[E] =
+  def apply[E](source: Signal[E], subscriber: Subscriber[E], ec: ExecutionContext): SignalSubscription[E] =
     new SignalSubscription[E](source, subscriber, Some(ec))(WeakReference(EventContext.Global))
 
-  def apply[E](source: Signal[E], subscriber: Subscription.Subscriber[E], ec: ExecutionContext, evc: EventContext): SignalSubscription[E] =
+  def apply[E](source: Signal[E], subscriber: Subscriber[E], ec: ExecutionContext, evc: EventContext): SignalSubscription[E] =
     new SignalSubscription[E](source, subscriber, Some(ec))(WeakReference(evc))
 }
 
@@ -153,7 +154,7 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
 }
 
 final class SignalSubscription[E](source: Signal[E],
-                                 subscriber: Subscription.Subscriber[E],
+                                 subscriber: Subscriber[E],
                                  executionContext: Option[ExecutionContext] = None
                                 )(implicit context: WeakReference[EventContext])
   extends BaseSubscription(context) with SignalListener {
@@ -179,7 +180,7 @@ final class SignalSubscription[E](source: Signal[E],
 }
 
 final class EventStreamSubscription[E](source: EventStream[E],
-                                      subscriber: Subscription.Subscriber[E],
+                                      subscriber: Subscriber[E],
                                       executionContext: Option[ExecutionContext] = None
                                      )(implicit context: WeakReference[EventContext])
   extends BaseSubscription(context) with EventListener[E] {
@@ -201,16 +202,16 @@ final class EventStreamSubscription[E](source: EventStream[E],
 trait EventSource[E] {
   val executionContext = Option.empty[ExecutionContext]
 
-  def on(ec: ExecutionContext)(subscriber: Subscription.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription
+  def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription
 
-  def apply(subscriber: Subscription.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription
+  def apply(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription
 }
 
 trait ForcedEventSource[E] extends EventSource[E] {
-  abstract override def on(ec: ExecutionContext)(subscriber: Subscription.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
+  abstract override def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
     returning(super.on(ec)(subscriber))(_.disablePauseWithContext())
 
-  abstract override def apply(subscriber: Subscription.Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
+  abstract override def apply(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
     returning(super.apply(subscriber))(_.disablePauseWithContext())
 }
 

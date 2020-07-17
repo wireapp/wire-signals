@@ -23,10 +23,7 @@ import Subscription.Subscriber
 import utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.ref.WeakReference
 import scala.util.{Failure, Success}
-
-
 
 object EventStream {
   def apply[A]() = new SourceStream[A]
