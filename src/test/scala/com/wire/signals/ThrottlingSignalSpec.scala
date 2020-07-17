@@ -19,7 +19,6 @@ package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicReference
 
-import utils._
 import com.wire.signals.testutils._
 
 import org.scalatest._
