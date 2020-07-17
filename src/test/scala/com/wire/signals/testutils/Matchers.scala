@@ -19,19 +19,14 @@ package com.wire.signals.testutils
 
 import java.util.concurrent.TimeoutException
 
-import com.wire.signals.utils._
-
 import org.scalatest.concurrent.PatienceConfiguration
-import org.scalatest.exceptions.TestFailedException
-import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest.matchers.Matcher
 import org.scalatest.time.{Nanoseconds, Span}
 import org.threeten.bp.Instant
-import com.wire.signals.EventStream
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Awaitable, Future, Promise}
-import scala.reflect.ClassTag
+import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -41,64 +36,6 @@ object Matchers {
   import org.scalatest.Matchers._
   import org.scalatest.OptionValues._
 
-  def eventually[T](m: Matcher[T])(implicit timeout: FiniteDuration = 5.seconds): Matcher[Awaitable[T]] = m compose (x => Await.result(x, timeout * spanScaleFactor))
-
-  def beMatching[A](pf: PartialFunction[Any, Any]): Matcher[A] = new Matcher[A] {
-    override def apply(left: A): MatchResult = MatchResult(pf.isDefinedAt(left), left + " doesn't match given pattern", left + " matches given pattern")
-  }
-
-  def succeed[A](implicit timeout: FiniteDuration = 5.seconds): Matcher[Future[A]] = new Matcher[Future[A]] {
-    override def apply(awaitable: Future[A]): MatchResult = {
-      val expectable = Await.ready(awaitable, timeout * spanScaleFactor).value.get
-      MatchResult(expectable.isSuccess, s"$expectable did not succeed", s"$expectable succeeded")
-    }
-  }
-
-  def failWith[A: ClassTag](implicit timeout: FiniteDuration = 5.seconds): Matcher[Future[_]] = new Matcher[Future[_]] {
-    override def apply(awaitable: Future[_]): MatchResult = {
-      val expectable = Await.ready(awaitable, timeout * spanScaleFactor).value.get
-      MatchResult(
-        expectable match {
-          case Failure(_: A) => true
-          case _ => false
-        },
-        s"$expectable did not fail with ${implicitly[ClassTag[A]].runtimeClass.getSimpleName}",
-        s"$expectable failed (as expected) with ${implicitly[ClassTag[A]].runtimeClass.getSimpleName}"
-      )
-    }
-  }
-
-  case class expectThat[A](implicit clazz: ClassTag[A]) {
-    def thrownBy(f: => Unit): Unit = {
-      var expectedWasThrown = false
-      try f catch {
-        case exc: TestFailedException => throw exc
-        case expected: A              => expectedWasThrown = true
-        case other: Throwable         =>
-          fail(s"expected ${clazz.runtimeClass.getName} but ${other.getClass.getName} was thrown instead", other)
-      }
-      if (!expectedWasThrown) fail(s"expected ${clazz.runtimeClass.getName} but no exception was thrown")
-    }
-  }
-
-  def withEvent[A, B](p: EventStream[A])(f: PartialFunction[A, Boolean])(body: => B)(implicit timeout: FiniteDuration = 15.seconds): B = {
-    import com.wire.signals.EventContext.Implicits.global
-    import com.wire.signals.Threading.executionContext
-
-    var gotNotification = false
-    p {
-      f.andThen(if (_) gotNotification = true)
-    }
-
-    val result = body // force evaluation
-
-    withClue("Notification was not received") {
-      withDelay(if (!gotNotification) throw new Exception("notification missing"), timeout)
-    }
-
-    result
-  }
-
   def patience(timeout: FiniteDuration = 5.seconds, interval: FiniteDuration = 20.millis): PatienceConfig =
     DefaultPatience.PatienceConfig(scaled(Span(timeout.toNanos, Nanoseconds)), scaled(Span(interval.toNanos, Nanoseconds)))
 
@@ -107,9 +44,6 @@ object Matchers {
 
     def tolerance: Tolerance = Tolerance(t)
   }
-
-  def within[A](timeout: FiniteDuration)(f: => A)(implicit p: PatienceConfig): A =
-    soon(f)(p.copy(timeout = scaled(Span(timeout.toNanos, Nanoseconds))))
 
   implicit class FutureSyntax[A, B](val f: A)(implicit ev: A => Future[B]) {
     def afterwards[C](clue: => String = "")(g: B => C)(implicit p: PatienceConfig): C =
@@ -137,16 +71,6 @@ object Matchers {
       case NonFatal(e) => Left(e)
     })(p).fold(e => throw e, identity)
 
-  def forAsLongAs[A](someTime: FiniteDuration, after: FiniteDuration = Duration.Zero)(f: => A)(implicit p: PatienceConfig): A = {
-    if (after > Duration.Zero) idle(after)
-    retryUntilRightOrTimeout(
-      try Left(f)
-      catch {
-        case NonFatal(e) => Right(e)
-      }
-    )(p.copy(timeout = scaled(Span(someTime.toNanos, Nanoseconds)))).fold(identity, e => throw e)
-  }
-
   def idle(someTime: FiniteDuration)(implicit p: PatienceConfig): Unit =
     retryUntilRightOrTimeout(Left(()))(p.copy(timeout = scaled(Span(someTime.toNanos, Nanoseconds))))
 
@@ -155,13 +79,6 @@ object Matchers {
   def beRoughly(d: Instant)(implicit tolerance: Tolerance): Matcher[Option[Instant]] =
     (be >= (d.toEpochMilli - (tolerance.t * spanScaleFactor).toMillis) and be <= (d.toEpochMilli + (tolerance.t * spanScaleFactor).toMillis))
       .compose(_.value.toEpochMilli)
-
-  implicit class WithinAndSoonPostfixes[A](f: => A) {
-    def within(timeout: FiniteDuration)(implicit p: PatienceConfig): A =
-      Matchers.this.soon(f)(p.copy(timeout = scaled(Span(timeout.toNanos, Nanoseconds))))
-
-    def soon(implicit p: PatienceConfig): A = Matchers.this.soon(f)(p)
-  }
 
   private def retryUntilRightOrTimeout[A, B](f: => Either[A, B])(p: PatienceConfig): Either[A, B] = {
     val startAt = System.nanoTime
@@ -177,10 +94,6 @@ object Matchers {
 
     attempt()
   }
-}
-
-trait DefaultPatienceConfig extends PatienceConfiguration {
-  override implicit lazy val patienceConfig: PatienceConfig = PatienceConfig(Matchers.patience().timeout, Matchers.patience().interval)
 }
 
 object DefaultPatience extends PatienceConfiguration {
