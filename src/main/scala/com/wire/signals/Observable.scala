@@ -45,7 +45,7 @@ trait Observable[Listener] {
     }
   }
 
-  private[signals] def notifyListeners(invoke: Listener => Unit): Unit = listeners foreach invoke
+  private[signals] def notifyListeners(invoke: Listener => Unit): Unit = listeners.foreach(invoke)
 
   private[signals] def hasSubscribers = listeners.nonEmpty
 

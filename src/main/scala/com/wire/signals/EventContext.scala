@@ -17,6 +17,9 @@
  */
 package com.wire.signals
 
+/**
+  *
+  */
 trait EventContext {
   def onContextStart(): Unit
   def onContextStop(): Unit

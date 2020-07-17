@@ -18,13 +18,11 @@
 package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicBoolean
-
-import Events.Subscriber
+import Subscription.Subscriber
 import utils._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.ref.WeakReference
 
 object Signal {
   def apply[A]() = new SourceSignal[A] with NoAutowiring
@@ -230,10 +228,10 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
   protected def onUnwire(): Unit = ()
 
   override def on(ec: ExecutionContext)(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+    returning(Subscription(this, subscriber, ec, eventContext))(_.enable())
 
   override def apply(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new SignalSubscription[A](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+    returning(Subscription(this, subscriber, eventContext))(_.enable())
 
   protected def publish(value: A): Unit = set(Some(value))
 
@@ -279,53 +277,6 @@ final private[signals] class ThrottlingSignal[A](source: Signal[A], delay: Finit
         super.notifyListeners(Some(context))
       }(context)
     }
-}
-
-final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Signal[B]) extends Signal[B] with SignalListener {
-  private val Empty = Signal.empty[B]
-
-  private object wiringMonitor
-
-  private var sourceValue: Option[A] = None
-  private var mapped: Signal[B] = Empty
-
-  private val sourceListener = new SignalListener {
-    override def changed(currentContext: Option[ExecutionContext]): Unit = {
-      val changed = wiringMonitor synchronized { // XXX: is this synchronization needed, is it enough? What if we just got unwired ?
-        val next = source.value
-        if (sourceValue != next) {
-          sourceValue = next
-
-          mapped.unsubscribe(FlatMapSignal.this)
-          mapped = next.map(f).getOrElse(Empty)
-          mapped.subscribe(FlatMapSignal.this)
-          true
-        } else false
-      }
-
-      if (changed) set(mapped.value)
-    }
-  }
-
-  override def onWire(): Unit = wiringMonitor.synchronized {
-    source.subscribe(sourceListener)
-
-    val next = source.value
-    if (sourceValue != next) {
-      sourceValue = next
-      mapped = next.map(f).getOrElse(Empty)
-    }
-
-    mapped.subscribe(this)
-    value = mapped.value
-  }
-
-  override def onUnwire(): Unit = wiringMonitor.synchronized {
-    source.unsubscribe(sourceListener)
-    mapped.unsubscribe(this)
-  }
-
-  override def changed(currentContext: Option[ExecutionContext]): Unit = set(mapped.value, currentContext)
 }
 
 abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalListener {

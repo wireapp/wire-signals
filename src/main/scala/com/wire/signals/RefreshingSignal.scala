@@ -35,7 +35,7 @@ class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventSt
   override protected def onUnwire(): Unit = {
     super.onUnwire()
     Future {
-      subscription.foreach(_.unsubscribe())
+      subscription.foreach(_.unsubscribe()) // FIXME: Shouldn't this be _.destroy()?
       subscription = None
       loadFuture.cancel()
       value = None

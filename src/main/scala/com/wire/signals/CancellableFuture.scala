@@ -30,7 +30,7 @@ import scala.util.{Failure, Success, Try}
 
 /** CancellableFuture is an object that for all practical uses works like a future
   * but enables the user to cancel the operation. A cancelled future fails with
-  * `CancellableFuture.CancelException` so the listener can differentiate between this
+  * [[com.wire.signals.CancellableFuture.CancelException]] so the listener can differentiate between this
   * and other failure reasons.
   *
   * @see https://github.com/wireapp/wire-signals/wiki/Overview
@@ -252,7 +252,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     * The subscription is also returned so it can be managed manually.
     *
     * @see com.wire.signals.EventContext
-    * @see com.wire.signals.Events
+    * @see com.wire.signals.Subscription
     */
   def withAutoCanceling(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new BaseSubscription(WeakReference(eventContext)) {

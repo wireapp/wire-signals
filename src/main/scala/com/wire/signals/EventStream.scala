@@ -19,7 +19,7 @@ package com.wire.signals
 
 import java.util.UUID.randomUUID
 
-import Events.Subscriber
+import Subscription.Subscriber
 import utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -77,11 +77,11 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   override def on(ec: ExecutionContext)
                  (subscriber: Subscriber[E])
                  (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+    returning(Subscription(this, subscriber, ec, eventContext))(_.enable())
 
   override def apply(subscriber: Subscriber[E])
                     (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+    returning(Subscription(this, subscriber, eventContext))(_.enable())
 
   def foreach(op: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription = apply(op)(context)
 
