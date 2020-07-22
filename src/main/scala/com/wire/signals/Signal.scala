@@ -227,11 +227,8 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
 
   protected def onUnwire(): Unit = ()
 
-  override def on(ec: ExecutionContext)(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(Subscription(this, subscriber, ec, eventContext))(_.enable())
-
-  override def apply(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(Subscription(this, subscriber, eventContext))(_.enable())
+  protected def createSubscription(subscriber: Subscriber[A], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
+    Subscription(this, subscriber, executionContext, eventContext)
 
   protected def publish(value: A): Unit = set(Some(value))
 
@@ -296,7 +293,7 @@ final private[signals] class ScanSignal[A, B](source: Signal[A], zero: B, f: (B,
   value = Some(zero)
 
   override protected def computeValue(current: Option[B]): Option[B] =
-    source.value map { v => f(current.getOrElse(zero), v) } orElse current
+    source.value.map { f(current.getOrElse(zero), _) }.orElse(current)
 }
 
 final private[signals] class FilterSignal[A](source: Signal[A], f: A => Boolean) extends ProxySignal[A](source) {
@@ -304,7 +301,7 @@ final private[signals] class FilterSignal[A](source: Signal[A], f: A => Boolean)
 }
 
 final private[signals] class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
-  override protected def computeValue(current: Option[B]): Option[B] = source.value map f
+  override protected def computeValue(current: Option[B]): Option[B] = source.value.map(f)
 }
 
 final private[signals] class Zip2Signal[A, B](s1: Signal[A], s2: Signal[B]) extends ProxySignal[(A, B)](s1, s2) {
