@@ -23,6 +23,7 @@ import utils._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.ref.WeakReference
 
 object Signal {
   def apply[A]() = new SourceSignal[A] with NoAutowiring
@@ -118,9 +119,9 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
     val changed = updateMonitor.synchronized {
       val next = f(value)
       if (value != next) {
-        value = next; true
-      }
-      else false
+        value = next
+        true
+      } else false
     }
     if (changed) notifyListeners(currentContext)
     changed
@@ -228,7 +229,12 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
   protected def onUnwire(): Unit = ()
 
   protected def createSubscription(subscriber: Subscriber[A], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
-    Subscription(this, subscriber, executionContext, eventContext)
+    (executionContext, eventContext) match {
+      case (Some(ec), Some(evc)) => new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(evc))
+      case (Some(ec), None)      => new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(EventContext.Global))
+      case (None, Some(evc))     => new SignalSubscription[A](this, subscriber, None)(WeakReference(evc))
+      case (None, None)          => new SignalSubscription[A](this, subscriber, None)(WeakReference(EventContext.Global))
+    }
 
   protected def publish(value: A): Unit = set(Some(value))
 
@@ -278,11 +284,11 @@ final private[signals] class ThrottlingSignal[A](source: Signal[A], delay: Finit
 
 abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalListener {
   override def onWire(): Unit = {
-    sources foreach (_.subscribe(this))
+    sources.foreach(_.subscribe(this))
     value = computeValue(value)
   }
 
-  override def onUnwire(): Unit = sources foreach (_.unsubscribe(this))
+  override def onUnwire(): Unit = sources.foreach(_.unsubscribe(this))
 
   override def changed(ec: Option[ExecutionContext]): Unit = update(computeValue, ec)
 

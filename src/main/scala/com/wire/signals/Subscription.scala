@@ -17,31 +17,10 @@
  */
 package com.wire.signals
 
-import com.wire.signals.Subscription.Subscriber
-import com.wire.signals.utils.returning
-
-import scala.concurrent.{ExecutionContext, Future}
 import scala.ref.WeakReference
-import scala.util.Try
 
 object Subscription {
   type Subscriber[-E] = E => Unit
-
-  def apply[E](source: EventStream[E], subscriber: Subscriber[E], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
-    (executionContext, eventContext) match {
-      case (Some(ec), Some(evc)) => new EventStreamSubscription[E](source, subscriber, Some(ec))(WeakReference(evc))
-      case (Some(ec), None)      => new EventStreamSubscription[E](source, subscriber, Some(ec))(WeakReference(EventContext.Global))
-      case (None, Some(evc))     => new EventStreamSubscription[E](source, subscriber, None)(WeakReference(evc))
-      case (None, None)          => new EventStreamSubscription[E](source, subscriber, None)(WeakReference(EventContext.Global))
-    }
-
-  def apply[E](source: Signal[E], subscriber: Subscriber[E], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
-    (executionContext, eventContext) match {
-      case (Some(ec), Some(evc)) => new SignalSubscription[E](source, subscriber, Some(ec))(WeakReference(evc))
-      case (Some(ec), None)      => new SignalSubscription[E](source, subscriber, Some(ec))(WeakReference(EventContext.Global))
-      case (None, Some(evc))     => new SignalSubscription[E](source, subscriber, None)(WeakReference(evc))
-      case (None, None)          => new SignalSubscription[E](source, subscriber, None)(WeakReference(EventContext.Global))
-    }
 }
 
 /** When you add a new listener to your [[EventStream]] or [[Signal]], in return you get a [[Subscription]].
@@ -103,6 +82,16 @@ trait Subscription {
   def disablePauseWithContext(): Unit
 }
 
+/** Provides the default implementation of the `Subscription` trait.
+  * Exposes two new abstract methods: `onSubscribe` and `onUnsubscribe`. A typical way to implement them is
+  * to have a reference to the source of events which implements the [[Observable]] trait and call `subscribe(this)`
+  * on that source (where `this` is the subscription).
+  *
+  * Look to [[com.wire.signals.Signal.SignalSubscription]] and [[com.wire.signals.EventStream.EventStreamSubscription]]
+  * for examples.
+  *
+  * @param context A weak reference to the event context within which the subscription lives.
+  */
 abstract class BaseSubscription(context: WeakReference[EventContext]) extends Subscription {
   @volatile protected[signals] var subscribed = false
   private var enabled = false
@@ -145,72 +134,4 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
   }
 }
 
-final class SignalSubscription[E](source: Signal[E],
-                                 subscriber: Subscriber[E],
-                                 executionContext: Option[ExecutionContext] = None
-                                )(implicit context: WeakReference[EventContext])
-  extends BaseSubscription(context) with SignalListener {
-
-  override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
-    source.value.foreach { event =>
-      if (subscribed)
-        executionContext match {
-          case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
-            Future(if (subscribed) Try(subscriber(event)))(ec)
-          case _ =>
-            subscriber(event)
-        }
-    }
-  }
-
-  override protected[signals] def onSubscribe(): Unit = {
-    source.subscribe(this)
-    changed(None) // refresh listener with current value
-  }
-
-  override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
-}
-
-final class EventStreamSubscription[E](source: EventStream[E],
-                                      subscriber: Subscriber[E],
-                                      executionContext: Option[ExecutionContext] = None
-                                     )(implicit context: WeakReference[EventContext])
-  extends BaseSubscription(context) with EventListener[E] {
-
-  override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
-    if (subscribed)
-      executionContext match {
-        case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
-          Future(if (subscribed) Try(subscriber(event)))(ec)
-        case _ =>
-          subscriber(event)
-      }
-
-  override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
-
-  override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
-}
-
-trait EventSource[E] { self =>
-  val executionContext = Option.empty[ExecutionContext]
-
-  def on(ec: ExecutionContext)
-        (subscriber: Subscriber[E])
-        (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(createSubscription(subscriber, Some(ec), Some(eventContext)))(_.enable())
-
-  def apply(subscriber: Subscriber[E])
-           (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(createSubscription(subscriber, None, Some(eventContext)))(_.enable())
-
-  protected def createSubscription(subscriber: Subscriber[E], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription
-}
-
-trait ForcedEventSource[E] extends EventSource[E] {
-  abstract override def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
-    returning(super.on(ec)(subscriber))(_.disablePauseWithContext())
-
-  abstract override def apply(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
-    returning(super.apply(subscriber))(_.disablePauseWithContext())
-}
 

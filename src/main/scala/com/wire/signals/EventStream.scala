@@ -20,9 +20,10 @@ package com.wire.signals
 import java.util.UUID.randomUUID
 
 import Subscription.Subscriber
-import utils.returning
+import com.wire.signals.utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.ref.WeakReference
 import scala.util.{Failure, Success}
 
 object EventStream {
@@ -66,23 +67,34 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
 
   protected[signals] def dispatch(event: E, sourceContext: Option[ExecutionContext]): Unit = executionContext match {
     case None | `sourceContext` => dispatchEvent(event, sourceContext)
-    case Some(ctx) => Future(dispatchEvent(event, executionContext))(ctx)
+    case Some(ctx)              => Future(dispatchEvent(event, executionContext))(ctx)
   }
 
   protected def publish(event: E): Unit = dispatch(event, None)
 
   protected def createSubscription(subscriber: Subscriber[E], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
-    Subscription(this, subscriber, executionContext, eventContext)
+    (executionContext, eventContext) match {
+      case (Some(ec), Some(evc)) => new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(evc))
+      case (Some(ec), None)      => new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(EventContext.Global))
+      case (None, Some(evc))     => new EventStreamSubscription[E](this, subscriber, None)(WeakReference(evc))
+      case (None, None)          => new EventStreamSubscription[E](this, subscriber, None)(WeakReference(EventContext.Global))
+    }
 
   def foreach(op: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription = apply(op)(context)
 
   def map[V](f: E => V): EventStream[V] = new MapEventStream[E, V](this, f)
+
   def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
+
   def mapAsync[V](f: E => Future[V]): EventStream[V] = new FutureEventStream[E, V](this, f)
+
   final def withFilter(f: E => Boolean): EventStream[E] = filter(f)
   def filter(f: E => Boolean): EventStream[E] = new FilterEventStream[E](this, f)
+
   def collect[V](pf: PartialFunction[E, V]) = new CollectEventStream[E, V](this, pf)
+
   def scan[V](zero: V)(f: (V, E) => V): EventStream[V] = new ScanEventStream[E, V](this, zero, f)
+
   def zip(stream: EventStream[E]): EventStream[E] = new ZipEventStream[E](this, stream)
 
   def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Unit = foreach(sourceStream ! _)
