@@ -29,6 +29,8 @@ package com.wire.signals
   *
   * Usage of methods in the trait are explained as they are implemented in the default implementation.
   * All operations on an [[EventContext]] are synchronized.
+  *
+  * @see [[EventSource]]
   */
 trait EventContext {
   /** An[[EventContext]] has to be started before it can register subscriptions.
@@ -38,8 +40,7 @@ trait EventContext {
   def start(): Unit
 
   /** Unsubscribes all subscriptions and prevents registering new ones before the event context is started again.
-    * The subscriptions are not destroyed and will be re-subscribed when the consecutive [[EventContext.start()]]
-    * is called.
+    * The subscriptions are not destroyed and will be re-subscribed when the consecutive `start()` is called.
     */
   def stop(): Unit
 
@@ -50,7 +51,7 @@ trait EventContext {
 
   /** Registers a new [[Subscription]] within the [[EventContext]] if the event context is not destroyed.
     * (But it does not have to be started). If the event context is started, the new subscription will be
-    * automatically subscribed. If not, it will be subscribed on the consecutive call to [[EventContext.start()]].
+    * automatically subscribed. If not, it will be subscribed on the consecutive call to `start()`.
     *
     * @param subscription The subscription to be registered
     * @return true if the subscription is registered, false otherwise
@@ -134,9 +135,9 @@ object EventContext {
     implicit val global: EventContext = EventContext.Global
   }
 
-  /** A dummy "global" [[EventContext]] used when no other event context is specified.
+  /** A dummy global [[EventContext]] used when no other event context is specified.
     * It does not maintain its subscriptions, it's always started, it can't be stopped or destroyed,
-    * and it lives for the lifetimeof the program.
+    * and it lives for the lifetime of the program.
     */
   final object Global extends EventContext {
     override def register(observer: Subscription): Boolean = true

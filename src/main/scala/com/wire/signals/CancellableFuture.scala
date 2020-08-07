@@ -46,7 +46,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     */
   @inline def future: Future[T] = promise.future
 
-  /** Tries to cancel the future. If successful, the future fails with `CancellableFuture.CancelException`
+  /** Tries to cancel the future. If successful, the future fails with [[CancellableFuture.CancelException]]
     *
     * @return true if the future was cancelled, false if it was completed beforehand (with success or failure).
     */
@@ -54,21 +54,19 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
 
   /** Tries to fails the future with the given exception as the failure's reason.
     *
-    * @return `true` if the future was cancelled, `false` if it was completed beforehand (with success or failure).
+    * @return true if the future was cancelled, false if it was completed beforehand (with success or failure).
     */
   def fail(ex: Exception): Boolean = promise.tryFailure(ex)
 
-  /** Same as `Future.onComplete`.
-    */
+  /** Same as [[Future.onComplete]]. */
   @inline def onComplete[U](f: Try[T] => U)(implicit executor: ExecutionContext): Unit = future.onComplete(f)
 
-  /** Same as `Future.foreach`.
-    */
+  /** Same as [[Future.foreach]]. */
   @inline def foreach[U](pf: T => U)(implicit executor: ExecutionContext): Unit = future.foreach(pf)
 
   /** When the future is cancelled (NOT failed with any other reason) the provided function is executed.
     * If the future is already cancelled, this will either be applied immediately or be scheduled
-    * asynchronously (same as in `Future.onComplete`).
+    * asynchronously (same as [[Future.onComplete]]).
     */
   def onCancelled(body: => Unit)(implicit executor: ExecutionContext): Unit = future.onComplete {
     case Failure(CancelException) => body
@@ -101,7 +99,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
 
   /** Creates a new cancellable future by applying the predicate `p` to the current one.
     * If the original future completes with success, but the result does not satisfies
-    * the predicate, the resulting future will fail with a `NoSuchElementException`.
+    * the predicate, the resulting future will fail with a [[NoSuchElementException]].
     */
   def filter(p: T => Boolean)(implicit executor: ExecutionContext): CancellableFuture[T] = flatMap { res =>
     if (p(res)) CancellableFuture.successful(res)
@@ -113,7 +111,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
   final def withFilter(p: T => Boolean)(implicit executor: ExecutionContext): CancellableFuture[T] = filter(p)(executor)
 
   /** Creates a new cancellable future by mapping the value of the current one, if the given partial function
-    * is defined at that value. Otherwise, the resulting cancellable future will fail with a `NoSuchElementException`.
+    * is defined at that value. Otherwise, the resulting cancellable future will fail with a [[NoSuchElementException]].
     *
     * @todo Test if the cancel operation is carried over.
     */
@@ -204,12 +202,11 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     }
   }
 
-  /** Flattens a nested cancellable future.
-    */
+  /** Flattens a nested [[CancellableFuture]]. */
   @inline def flatten[S](implicit executor: ExecutionContext, evidence: T <:< CancellableFuture[S]): CancellableFuture[S] =
     flatMap(x => x)
 
-  /** Creates a new CancellableFuture from the current one and the provided one.
+  /** Creates a new [[CancellableFuture]] from the current one and the provided one.
     * The new future completes with success only if both original futures complete with success.
     * If any of the fails or is cancelled, the resulting future fails or is cancelled as well.
     * If the user cancels the resulting future, both original futures are cancelled.
@@ -251,8 +248,8 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     * When the event context is stopped, the future will be cancelled.
     * The subscription is also returned so it can be managed manually.
     *
-    * @see com.wire.signals.EventContext
-    * @see com.wire.signals.Subscription
+    * @see [[EventContext]]
+    * @see [[Subscription]]
     */
   def withAutoCanceling(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new BaseSubscription(WeakReference(eventContext)) {
@@ -273,7 +270,7 @@ object CancellableFuture {
     def toCancellable: CancellableFuture[T] = CancellableFuture.lift(future)
   }
 
-  /** When the cancellable future is cancelled, `CancelException` is provided as the reason
+  /** When the cancellable future is cancelled, [[CancelException]] is used as the reason
     * of failure of the underlying future.
     */
   case object CancelException extends Exception("Operation cancelled") with NoStackTrace
@@ -284,7 +281,7 @@ object CancellableFuture {
     override def run(): Unit = if (!promise.isCompleted) promise.tryComplete(Try(body))
   }
 
-  /** Creates `CancellableFuture[T]` from the given function with the result type of `T`.
+  /** Creates [[CancellableFuture]]`[T]` from the given function with the result type of `T`.
     *
     * @param body The function to be executed asynchronously
     * @param executor The execution context
@@ -296,7 +293,7 @@ object CancellableFuture {
       returning(new PromiseCompletingRunnable(body))(executor.execute).promise
     )
 
-  /** Turns a regular `Future[T]` into `CancellableFuture[T]`.
+  /** Turns a regular [[Future]]`[T]` into [[CancellableFuture]]`[T]`.
     *
     * @param future The future to be lifted
     * @param onCancel An optional function to be called if the new cancellable future is cancelled
@@ -315,8 +312,8 @@ object CancellableFuture {
     }
   }
 
-  /** Creates an empty cancellable future that will start its execution after the given time.
-    * Typically used together with `map` or a similar method to execute computation with a delay.
+  /** Creates an empty [[CancellableFuture]] that will start its execution after the given time.
+    * Typically used together with [[CancellableFuture.map]] or a similar method to execute computation with a delay.
     */
   def delay(duration: FiniteDuration): CancellableFuture[Unit] =
     if (duration <= Duration.Zero) successful(())
@@ -335,7 +332,7 @@ object CancellableFuture {
     * until cancelled. The first computation is executed with `duration` delay. If the operation takes
     * longer than `duration` it will not be cancelled after the given time, but also the ability to cancel
     * it will be lost.
-    * Typically used together with `map` or a similar method.
+    * Typically used together with [[CancellableFuture.map]] or a similar method.
     *
     * @todo Test if it works as designed.
     */
@@ -365,31 +362,32 @@ object CancellableFuture {
     }
   }
 
-  /** A utility method that combines `delay` with `map`.
+  /** A utility method that combines [[CancellableFuture.delay]] with [[CancellableFuture.map]].
     */
   def delayed[T](duration: FiniteDuration)(body: => T)(implicit executor: ExecutionContext): CancellableFuture[T] =
     if (duration <= Duration.Zero) CancellableFuture(body)
     else delay(duration).map { _ => body }
 
-  /** Creates an already completed `CancellableFuture[T]` with the specified result.
+  /** Creates an already completed [[CancellableFuture]] with the specified result.
     */
   def successful[T](res: T): CancellableFuture[T] = new CancellableFuture[T](Promise.successful(res)) {
     override def toString: String = s"CancellableFuture.successful($res)"
   }
 
-  /** Creates an already failed `CancellableFuture[T] `with the given throwable as the failure reason.
+  /** Creates an already failed [[CancellableFuture]] with the given throwable as the failure reason.
     */
   def failed[T](ex: Throwable): CancellableFuture[T] = new CancellableFuture[T](Promise.failed(ex)) {
     override def toString: String = s"CancellableFuture.failed($ex)"
   }
 
-  /** Creates an already cancelled `CancellableFuture[T]`.
+  /** Creates an already cancelled [[CancellableFuture]].
     */
   def cancelled[T](): CancellableFuture[T] = failed(CancelException)
 
-  /** Creates a new `CancellableFuture[TraversableOnce[T]]` from a TraversableOnce of `CancellableFuture[T]`.
-    * The original futures are executed asynchronously, but checking their results will be done in sequence.
-    * I.e., if the sequence is (A, B) where A takes a long time to complete, and B completes faster,
+  /** Creates a new [[CancellableFuture]]`[TraversableOnce[T]]` from a [[TraversableOnce]] collection of
+    * [[CancellableFuture]]`[T]`. The original futures are executed asynchronously, but checking their results will be
+    * done in sequence.
+    * For example, if the sequence is (A, B) where A takes a long time to complete, and B completes faster,
     * the new cancellable future will anyway check the result of B only after A is completed.
     * In practice, it means that if any of the original cancellable futures fails or is cancelled, the resulting
     * one will first wait for all those before it and fail by itself only after reaching the failed one.
@@ -406,7 +404,7 @@ object CancellableFuture {
       (fr, fa) => for (r <- fr; a <- fa) yield r += a
     } map (_.result())
 
-  /** Transforms a `TraversableOnce[T]` into a `CancellableFuture[TraversableOnce[U]]` using
+  /** Transforms a [[TraversableOnce]]`[T]` into a [[CancellableFuture]]`[TraversableOnce[U]]` using
     * the provided function `T => CancellableFuture[U]`. Each cancellable future will be executed
     * asynchronously. If any of the original cancellable futures fails or is cancelled, the resulting
     * one will first wait for all those before it and fail by itself only after reaching the failed one.
@@ -417,7 +415,7 @@ object CancellableFuture {
                     (implicit executor: ExecutionContext): CancellableFuture[TraversableOnce[U]] =
     sequence(in.map(f))
 
-  /** Transforms a `TraversableOnce[T]` into a `CancellableFuture[TraversableOnce[U]]` using
+  /** Transforms a [[TraversableOnce]]`[T]` into a [[CancellableFuture]]`[TraversableOnce[U]]` using
     * the provided function `T => CancellableFuture[U]`. Each cancellable future will be executed
     * synchronously. If any of the original cancellable futures fails or is cancelled, the resulting one
     * also fails and no consecutive original futures will be executed.
@@ -434,7 +432,7 @@ object CancellableFuture {
     processNext(in)
   }
 
-  /** Creates a new `CancellableFuture[(T, U)]` from two original cancellable futures, one of the type `T`,
+  /** Creates a new [[CancellableFuture]]`[(T, U)]` from two original cancellable futures, one of the type `T`,
     * and one of the type `U`. The new future will fail or be cancelled if any of the original ones fails.
     * Cancelling the new future will fail both original ones.
     */

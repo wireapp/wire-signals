@@ -20,6 +20,10 @@ package com.wire.signals
 import scala.ref.WeakReference
 
 object Subscription {
+  /** A function type of any function which can consume events.
+    *
+    * @tparam E The type of the event, emitted by an [[EventSource]] and consumed by the subscriber.
+    */
   type Subscriber[-E] = E => Unit
 }
 
@@ -77,18 +81,19 @@ trait Subscription {
   def disable(): Unit
 
   /** In the default implementation, you can call this to prevent the listener from unsubscribing.
-    * The subscription will stay subscribed for the whole lifetime of the program.
+    * The subscription will stay subscribed until destroyed.
     */
   def disablePauseWithContext(): Unit
 }
 
-/** Provides the default implementation of the `Subscription` trait.
+/** Provides the default implementation of the [[Subscription]] trait.
   * Exposes two new abstract methods: `onSubscribe` and `onUnsubscribe`. A typical way to implement them is
   * to have a reference to the source of events which implements the [[Observable]] trait and call `subscribe(this)`
   * on that source (where `this` is the subscription).
   *
-  * Look to [[com.wire.signals.Signal.SignalSubscription]] and [[com.wire.signals.EventStream.EventStreamSubscription]]
-  * for examples.
+  * For examples:
+  * @see [[Signal.SignalSubscription]]
+  * @see [[EventStream.EventStreamSubscription]]
   *
   * @param context A weak reference to the event context within which the subscription lives.
   */
