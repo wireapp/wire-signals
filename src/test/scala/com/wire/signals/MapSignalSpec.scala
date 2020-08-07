@@ -68,11 +68,11 @@ class MapSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
       val f = s map (_ * 2)
       val sub = f(capture)
       Seq(2, 3) foreach (s ! _)
-      s.hasSubscribers shouldBe true
-      f.hasSubscribers shouldBe true
+      s.hasListeners shouldBe true
+      f.hasListeners shouldBe true
       sub.destroy()
-      s.hasSubscribers shouldBe false
-      f.hasSubscribers shouldBe false
+      s.hasListeners shouldBe false
+      f.hasListeners shouldBe false
       s ! 4
       received shouldEqual Seq(2, 4, 6)
     }

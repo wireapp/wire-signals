@@ -37,12 +37,12 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     received = Seq[Int]()
-    eventContext.onContextStart()
+    eventContext.start()
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
-    eventContext.onContextStop()
+    eventContext.stop()
   }
 
   feature("Basic Signals") {
@@ -55,11 +55,11 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
 
     scenario("Basic subscriber lifecycle") {
       val s = Signal(1)
-      s.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
       val sub = s { value => () }
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
       sub.destroy()
-      s.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
     }
 
     scenario("Don't receive events after unregistering a single observer") {
@@ -141,7 +141,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       })
 
       val subs = Await.result(Future.sequence(Seq.fill(50)(add(barrier))), 10.seconds)
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
       num.getAndSet(0) shouldEqual 50
 
       s ! 42
@@ -164,14 +164,14 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
 
       num.get should be <= 75 * 25
       num.get should be >= 25 * 25
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
       barrier.reset()
       Await.result(Future.traverse(moreSubs ++ subs.drop(25))(sub => Future(blocking {
         barrier.await()
         sub.destroy()
       })), 10.seconds)
-      s.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
     }
 
     scenario("Concurrent updates with incremental values") {

@@ -19,7 +19,7 @@ package com.wire.signals
 
 trait Observable[Listener] {
 
-  private object listenersMonitor
+  private object lock
 
   private var autowiring = true
   @volatile private[signals] var wired = false
@@ -29,27 +29,29 @@ trait Observable[Listener] {
 
   protected def onUnwire(): Unit
 
-  private[signals] def subscribe(l: Listener): Unit = listenersMonitor.synchronized {
-    listeners += l
+  private[signals] def subscribe(listener: Listener): Unit = lock.synchronized {
+    listeners += listener
     if (!wired) {
       wired = true
       onWire()
     }
   }
 
-  private[signals] def unsubscribe(l: Listener): Unit = listenersMonitor.synchronized {
-    listeners -= l
+  private[signals] def unsubscribe(listener: Listener): Unit = lock.synchronized {
+    listeners -= listener
     if (wired && autowiring && listeners.isEmpty) {
       wired = false
       onUnwire()
     }
   }
 
-  private[signals] def notifyListeners(invoke: Listener => Unit): Unit = listeners.foreach(invoke)
+  private[signals] def notifyListeners(invoke: Listener => Unit): Unit = lock.synchronized {
+    listeners.foreach(invoke)
+  }
 
-  private[signals] def hasSubscribers = listeners.nonEmpty
+  private[signals] def hasListeners = lock.synchronized { listeners.nonEmpty }
 
-  def unsubscribeAll(): Unit = listenersMonitor.synchronized {
+  def unsubscribeAll(): Unit = lock.synchronized {
     listeners = Set.empty
     if (wired && autowiring) {
       wired = false
@@ -57,7 +59,7 @@ trait Observable[Listener] {
     }
   }
 
-  def disableAutowiring(): this.type = listenersMonitor.synchronized {
+  def disableAutowiring(): this.type = lock.synchronized {
     autowiring = false
     if (!wired) {
       wired = true
