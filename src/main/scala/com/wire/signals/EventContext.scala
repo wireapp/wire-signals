@@ -70,7 +70,7 @@ trait EventContext {
   def isContextDestroyed: Boolean
 }
 
-private[signals] final class EventContextImpl extends EventContext {
+class BaseEventContext extends EventContext {
 
   private object lock
 
@@ -129,7 +129,7 @@ object EventContext {
     *
     * @return A default implementation of the [[EventContext]]
     */
-  def apply(): EventContext = new EventContextImpl
+  def apply(): EventContext = new BaseEventContext
 
   object Implicits {
     implicit val global: EventContext = EventContext.Global

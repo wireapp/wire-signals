@@ -58,7 +58,7 @@ object DispatchQueue {
 
 class UnlimitedDispatchQueue(executor: ExecutionContext,
                              private val _name: Option[String] = None) extends DispatchQueue {
-  override val name = _name.getOrElse("UnlimitedQueue")
+  override val name: String = _name.getOrElse("UnlimitedQueue")
   override def execute(runnable: Runnable): Unit = executor.execute(runnable)
 }
 
@@ -70,7 +70,7 @@ class LimitedDispatchQueue(concurrencyLimit: Int,
                            parent: ExecutionContext,
                            private val _name: Option[String])
   extends DispatchQueue {
-  override val name = _name.getOrElse("LimitedQueue")
+  override val name: String = _name.getOrElse("LimitedQueue")
   require(concurrencyLimit > 0, "concurrencyLimit should be greater than 0")
 
   override def execute(runnable: Runnable): Unit = Executor.dispatch(runnable)

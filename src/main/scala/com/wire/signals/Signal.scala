@@ -384,3 +384,4 @@ final private[signals] class PartialUpdateSignal[A, B](source: Signal[A])(select
 
   override protected def computeValue(current: Option[A]): Option[A] = source.value
 }
+
