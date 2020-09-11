@@ -36,15 +36,15 @@ object Signal {
 
   def const[A](v: A): Signal[A] = new ConstSignal[A](Some(v))
 
-  def apply[A, B](s1: Signal[A], s2: Signal[B]): Signal[(A, B)] = new Zip2Signal[A, B](s1, s2)
+  def zip[A, B](s1: Signal[A], s2: Signal[B]): Signal[(A, B)] = new Zip2Signal[A, B](s1, s2)
 
-  def apply[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]): Signal[(A, B, C)] = new Zip3Signal(s1, s2, s3)
+  def zip[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]): Signal[(A, B, C)] = new Zip3Signal(s1, s2, s3)
 
-  def apply[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D]): Signal[(A, B, C, D)] = new Zip4Signal(s1, s2, s3, s4)
+  def zip[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D]): Signal[(A, B, C, D)] = new Zip4Signal(s1, s2, s3, s4)
 
-  def apply[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E]): Signal[(A, B, C, D, E)] = new Zip5Signal(s1, s2, s3, s4, s5)
+  def zip[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E]): Signal[(A, B, C, D, E)] = new Zip5Signal(s1, s2, s3, s4, s5)
 
-  def apply[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F]): Signal[(A, B, C, D, E, F)] = new Zip6Signal(s1, s2, s3, s4, s5, s6)
+  def zip[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F]): Signal[(A, B, C, D, E, F)] = new Zip6Signal(s1, s2, s3, s4, s5, s6)
 
   def throttled[A](s: Signal[A], delay: FiniteDuration): Signal[A] = new ThrottlingSignal(s, delay)
 
@@ -60,20 +60,18 @@ object Signal {
 
   def sequence[A](sources: Signal[A]*): Signal[Seq[A]] = new ProxySignal[Seq[A]](sources: _*) {
     override protected def computeValue(current: Option[Seq[A]]): Option[Seq[A]] = {
-      val res = sources map {
-        _.value
-      }
+      val res = sources.map(_.value)
       if (res.exists(_.isEmpty)) None else Some(res.flatten)
     }
   }
 
-  def future[A](future: Future[A]): Signal[A] = returning(new Signal[A]) { signal =>
+  def from[A](future: Future[A]): Signal[A] = returning(new Signal[A]) { signal =>
     future.foreach {
       res => signal.set(Option(res), Some(Threading.executionContext))
     }(Threading.executionContext)
   }
 
-  def wrap[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
+  def from[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
     private lazy val subscription = source {
       publish
     }(EventContext.Global)
@@ -83,7 +81,7 @@ object Signal {
     override protected def onUnwire(): Unit = subscription.disable()
   }
 
-  def wrap[A](source: EventStream[A]): Signal[A] = new Signal[A](None) {
+  def from[A](source: EventStream[A]): Signal[A] = new Signal[A](None) {
     private lazy val subscription = source {
       publish
     }(EventContext.Global)
@@ -134,7 +132,6 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       notifyListeners(currentContext)
     }
 
-
   private[signals] def notifyListeners(currentContext: Option[ExecutionContext]): Unit =
     super.notifyListeners(_.changed(currentContext))
 
@@ -173,13 +170,15 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       p.future
   }
 
+  def future: Future[A] = head
+
   def zip[B](s: Signal[B]): Signal[(A, B)] = new Zip2Signal[A, B](this, s)
 
   def map[B](f: A => B): Signal[B] = new MapSignal[A, B](this, f)
 
   def filter(f: A => Boolean): Signal[A] = new FilterSignal(this, f)
 
-  def withFilter(f: A => Boolean): Signal[A] = new FilterSignal(this, f)
+  final def withFilter(f: A => Boolean): Signal[A] = filter(f)
 
   def ifTrue(implicit ev: A =:= Boolean): Signal[Unit] = collect { case true => () }
 
@@ -247,7 +246,7 @@ trait NoAutowiring { self: Signal[_] =>
   * Immutable signal value. Can be used whenever some constant or empty signal is needed.
   * Using immutable signals in flatMap chains should have better performance compared to regular signals with the same value.
   */
-final class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring {
+final private[signals] class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring {
   override def subscribe(l: SignalListener): Unit = ()
 
   override def unsubscribe(l: SignalListener): Unit = ()
@@ -259,7 +258,7 @@ final class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring 
     throw new UnsupportedOperationException("Const signal can not be changed")
 }
 
-final class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends ProxySignal[A](source) {
+final private[signals] class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends ProxySignal[A](source) {
 
   import scala.concurrent.duration._
 
@@ -280,7 +279,7 @@ final class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extend
     }
 }
 
-final class FlatMapSignal[A, B](source: Signal[A], f: A => Signal[B]) extends Signal[B] with SignalListener {
+final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Signal[B]) extends Signal[B] with SignalListener {
   private val Empty = Signal.empty[B]
 
   private object wiringMonitor
@@ -340,27 +339,28 @@ abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with Signal
   protected def computeValue(current: Option[A]): Option[A]
 }
 
-final class ScanSignal[A, B](source: Signal[A], zero: B, f: (B, A) => B) extends ProxySignal[B](source) {
+final private[signals] class ScanSignal[A, B](source: Signal[A], zero: B, f: (B, A) => B) extends ProxySignal[B](source) {
   value = Some(zero)
 
   override protected def computeValue(current: Option[B]): Option[B] =
     source.value map { v => f(current.getOrElse(zero), v) } orElse current
 }
 
-final class FilterSignal[A](source: Signal[A], f: A => Boolean) extends ProxySignal[A](source) {
+final private[signals] class FilterSignal[A](source: Signal[A], f: A => Boolean) extends ProxySignal[A](source) {
   override protected def computeValue(current: Option[A]): Option[A] = source.value.filter(f)
 }
 
-final class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
+final private[signals]class MapSignal[A, B](source: Signal[A], f: A => B) extends ProxySignal[B](source) {
   override protected def computeValue(current: Option[B]): Option[B] = source.value map f
 }
 
-final class Zip2Signal[A, B](s1: Signal[A], s2: Signal[B]) extends ProxySignal[(A, B)](s1, s2) {
+final private[signals] class Zip2Signal[A, B](s1: Signal[A], s2: Signal[B]) extends ProxySignal[(A, B)](s1, s2) {
   override protected def computeValue(current: Option[(A, B)]): Option[(A, B)] =
     for (a <- s1.value; b <- s2.value) yield (a, b)
 }
 
-final class Zip3Signal[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]) extends ProxySignal[(A, B, C)](s1, s2, s3) {
+final private[signals] class Zip3Signal[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C])
+  extends ProxySignal[(A, B, C)](s1, s2, s3) {
   override protected def computeValue(current: Option[(A, B, C)]): Option[(A, B, C)] =
     for {
       a <- s1.value
@@ -369,7 +369,7 @@ final class Zip3Signal[A, B, C](s1: Signal[A], s2: Signal[B], s3: Signal[C]) ext
     } yield (a, b, c)
 }
 
-final class Zip4Signal[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D])
+final private[signals] class Zip4Signal[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D])
   extends ProxySignal[(A, B, C, D)](s1, s2, s3, s4) {
   override protected def computeValue(current: Option[(A, B, C, D)]): Option[(A, B, C, D)] =
     for {
@@ -380,7 +380,7 @@ final class Zip4Signal[A, B, C, D](s1: Signal[A], s2: Signal[B], s3: Signal[C], 
     } yield (a, b, c, d)
 }
 
-final class Zip5Signal[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E])
+final private[signals] class Zip5Signal[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E])
   extends ProxySignal[(A, B, C, D, E)](s1, s2, s3, s4, s5) {
   override protected def computeValue(current: Option[(A, B, C, D, E)]): Option[(A, B, C, D, E)] =
     for {
@@ -392,7 +392,8 @@ final class Zip5Signal[A, B, C, D, E](s1: Signal[A], s2: Signal[B], s3: Signal[C
     } yield (a, b, c, d, e)
 }
 
-final class Zip6Signal[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F]) extends ProxySignal[(A, B, C, D, E, F)](s1, s2, s3, s4, s5, s6) {
+final private[signals] class Zip6Signal[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F])
+  extends ProxySignal[(A, B, C, D, E, F)](s1, s2, s3, s4, s5, s6) {
   override protected def computeValue(current: Option[(A, B, C, D, E, F)]): Option[(A, B, C, D, E, F)] = for {
     a <- s1.value
     b <- s2.value
@@ -403,12 +404,12 @@ final class Zip6Signal[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signa
   } yield (a, b, c, d, e, f)
 }
 
-final class FoldLeftSignal[A, B](sources: Signal[A]*)(v: B)(f: (B, A) => B) extends ProxySignal[B](sources: _*) {
+final private[signals] class FoldLeftSignal[A, B](sources: Signal[A]*)(v: B)(f: (B, A) => B) extends ProxySignal[B](sources: _*) {
   override protected def computeValue(current: Option[B]): Option[B] =
     sources.foldLeft(Option(v))((mv, signal) => for (a <- mv; b <- signal.value) yield f(a, b))
 }
 
-final class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends ProxySignal[A](source) {
+final private[signals] class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends ProxySignal[A](source) {
 
   private object updateMonitor
 
@@ -427,6 +428,3 @@ final class PartialUpdateSignal[A, B](source: Signal[A])(select: A => B) extends
 
   override protected def computeValue(current: Option[A]): Option[A] = source.value
 }
-
-
-

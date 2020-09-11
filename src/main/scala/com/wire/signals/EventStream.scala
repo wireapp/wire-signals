@@ -33,9 +33,10 @@ private[signals] trait EventListener[E] {
 
 object EventStream {
   def apply[A]() = new SourceStream[A]
-  def union[A](streams: EventStream[A]*): EventStream[A] = new UnionEventStream(streams: _*)
 
-  def wrap[A](source: Signal[A]): EventStream[A] with SignalListener = new EventStream[A] with SignalListener { stream =>
+  def zip[A](streams: EventStream[A]*): EventStream[A] = new UnionEventStream(streams: _*)
+
+  def from[A](source: Signal[A]): EventStream[A] with SignalListener = new EventStream[A] with SignalListener { stream =>
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized { source.value foreach (dispatch(_, ec)) }
 
     override protected def onWire(): Unit = {
@@ -69,17 +70,21 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
 
   override def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription = returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
-  override def apply(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription = returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+  override def apply(subscriber: Subscriber[E])(implicit eventContext: EventContext): Subscription =
+    returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
-  def foreach(op: E => Unit)(implicit context: EventContext): Unit = apply(op)(context)
+  def foreach(op: E => Unit)(implicit context: EventContext): Subscription = apply(op)(context)
 
   def map[V](f: E => V): EventStream[V] = new MapEventStream[E, V](this, f)
   def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
   def mapAsync[V](f: E => Future[V]): EventStream[V] = new FutureEventStream[E, V](this, f)
+  final def withFilter(f: E => Boolean): EventStream[E] = filter(f)
   def filter(f: E => Boolean): EventStream[E] = new FilterEventStream[E](this, f)
   def collect[V](pf: PartialFunction[E, V]) = new CollectEventStream[E, V](this, pf)
   def scan[V](zero: V)(f: (V, E) => V): EventStream[V] = new ScanEventStream[E, V](this, zero, f)
   def union(stream: EventStream[E]): EventStream[E] = new UnionEventStream[E](this, stream)
+
+  def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext): Unit = foreach(sourceStream ! _)
 
   def next(implicit context: EventContext): CancellableFuture[E] = {
     val p = Promise[E]()
@@ -87,6 +92,12 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
     p.future.onComplete(_ => o.destroy())(Threading.executionContext)
     new CancellableFuture(p)
   }
+
+  def future(implicit context: EventContext = EventContext.Global): Future[E] = next.future
+
+  def ifTrue(implicit ev: E =:= Boolean): EventStream[Unit] = collect { case true => () }
+
+  def ifFalse(implicit ev: E =:= Boolean): EventStream[Unit] = collect { case false => () }
 
   protected def onWire(): Unit = {}
   protected def onUnwire(): Unit = {}
@@ -97,17 +108,19 @@ abstract class ProxyEventStream[A, E](sources: EventStream[A]*) extends EventStr
   override protected[signals] def onUnwire(): Unit = sources foreach (_.unsubscribe(this))
 }
 
-final class MapEventStream[E, V](source: EventStream[E], f: E => V) extends ProxyEventStream[E, V](source) {
-  override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = dispatch(f(event), sourceContext)
+final private[signals] class MapEventStream[E, V](source: EventStream[E], f: E => V)
+  extends ProxyEventStream[E, V](source) {
+  override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
+    dispatch(f(event), sourceContext)
 }
 
-final class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V]) extends EventStream[V] with EventListener[E] {
+final private[signals] class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
+  extends EventStream[V] with EventListener[E] {
   @volatile private var mapped: Option[EventStream[V]] = None
 
   private val mappedListener = new EventListener[V] {
-    override protected[signals] def onEvent(event: V, currentContext: Option[ExecutionContext]): Unit = {
+    override protected[signals] def onEvent(event: V, currentContext: Option[ExecutionContext]): Unit =
       dispatch(event, currentContext)
-    }
   }
 
   override protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit = {
@@ -115,9 +128,7 @@ final class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => Event
     mapped = Some(returning(f(event))(_.subscribe(mappedListener)))
   }
 
-  override protected def onWire(): Unit = {
-    source.subscribe(this)
-  }
+  override protected def onWire(): Unit = source.subscribe(this)
 
   override protected def onUnwire(): Unit = {
     mapped.foreach(_.unsubscribe(mappedListener))
@@ -126,7 +137,8 @@ final class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => Event
   }
 }
 
-final class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V]) extends ProxyEventStream[E, V](source) {
+final private[signals] class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V])
+  extends ProxyEventStream[E, V](source) {
   private val key = randomUUID()
 
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
@@ -137,20 +149,26 @@ final class FutureEventStream[E, V](source: EventStream[E], f: E => Future[V]) e
     }(sourceContext.orElse(executionContext).getOrElse(Threading.executionContext)))
 }
 
-final class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V]) extends ProxyEventStream[E, V](source) {
+final private[signals] class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V])
+  extends ProxyEventStream[E, V](source) {
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
     if (pf.isDefinedAt(event)) dispatch(pf(event), sourceContext)
 }
 
-final class FilterEventStream[E](source: EventStream[E], f: E => Boolean) extends ProxyEventStream[E, E](source) {
-  override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = if (f(event)) dispatch(event, sourceContext)
+final private[signals] class FilterEventStream[E](source: EventStream[E], f: E => Boolean)
+  extends ProxyEventStream[E, E](source) {
+  override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
+    if (f(event)) dispatch(event, sourceContext)
 }
 
-final class UnionEventStream[E](sources: EventStream[E]*) extends ProxyEventStream[E, E](sources: _*) {
-  override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = dispatch(event, sourceContext)
+final private[signals] class UnionEventStream[E](sources: EventStream[E]*)
+  extends ProxyEventStream[E, E](sources: _*) {
+  override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
+    dispatch(event, sourceContext)
 }
 
-final class ScanEventStream[E, V](source: EventStream[E], zero: V, f: (V, E) => V) extends ProxyEventStream[E, V] {
+final private[signals] class ScanEventStream[E, V](source: EventStream[E], zero: V, f: (V, E) => V)
+  extends ProxyEventStream[E, V] {
   @volatile private var value = zero
 
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = {

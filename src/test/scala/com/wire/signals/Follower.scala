@@ -19,7 +19,8 @@ package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicReference
 
-import utils._
+import com.wire.signals.utils.returning
+import testutils._
 
 case class Follower[A](signal: Signal[A]) {
   private val receivedValues = new AtomicReference(Vector.empty[A])

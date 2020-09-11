@@ -19,8 +19,7 @@ package com.wire.signals
 
 import org.scalatest._
 import Threading._
-import com.wire.signals.testutils.Publisher
-import utils._
+import testutils._
 
 import scala.concurrent.Promise
 
