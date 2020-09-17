@@ -218,7 +218,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     CancellableFuture.zip(self, other)
 
   /** Same as `Future.ready`.
-    *'''''This method should not be called directly; use [[Await.ready]] instead.'''''
+    *'''''This method should not be called directly; use `Await.ready` instead.'''''
     */
   @throws[InterruptedException](classOf[InterruptedException])
   @throws[TimeoutException](classOf[TimeoutException])
@@ -228,7 +228,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
   }
 
   /** Same as `Future.result`.
-    * '''''This method should not be called directly; use [[Await.result]] instead.'''''
+    * '''''This method should not be called directly; use `Await.result` instead.'''''
     */
   @throws[Exception](classOf[Exception])
   override def result(atMost: Duration)(implicit permit: CanAwait): T = future.result(atMost)
@@ -237,7 +237,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     *
     * @todo timeout should generate different exception
     *
-    * @param timeout
+    * @param timeout FiniteDuration
     * @throws TimeoutException if the future is not completed after the given timeout
     * @return The current cancellable future
     */

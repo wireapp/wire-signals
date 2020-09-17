@@ -20,6 +20,8 @@ package com.wire.signals
 import utils._
 import org.scalatest.{BeforeAndAfter, FeatureSpec, Matchers, OptionValues}
 
+import scala.concurrent.Promise
+
 class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
 
   import EventContext.Implicits.global
@@ -92,4 +94,34 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
     }
 
   }
+
+  feature("EventStream from a future") {
+    scenario("emit an event when a future is successfully completed") {
+      implicit val dq: DispatchQueue = SerialDispatchQueue()
+      val promise = Promise[Int]()
+      val resPromise = Promise[Int]()
+
+      EventStream.from(promise.future){ event =>
+        event shouldEqual 1
+        resPromise.success(event)
+      }
+
+      testutils.withDelay(promise.success(1))
+
+      testutils.result(resPromise.future) shouldEqual 1
+    }
+
+    scenario("don't emit an event when a future is completed with a failure") {
+      val promise = Promise[Int]()
+      val resPromise = Promise[Int]()
+
+      EventStream.from(promise.future) { event => resPromise.success(event) }
+
+      promise.failure(new IllegalArgumentException)
+
+      testutils.tryResult(resPromise.future).isFailure shouldBe true
+    }
+  }
+
+  case object FakeError extends Throwable
 }

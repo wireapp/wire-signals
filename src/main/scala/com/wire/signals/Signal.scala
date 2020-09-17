@@ -65,11 +65,14 @@ object Signal {
     }
   }
 
-  def from[A](future: Future[A]): Signal[A] = returning(new Signal[A]) { signal =>
+  def from[A](future: Future[A], executionContext: ExecutionContext): Signal[A] = returning(new Signal[A]) { signal =>
     future.foreach {
-      res => signal.set(Option(res), Some(Threading.executionContext))
-    }(Threading.executionContext)
+      res => signal.set(Option(res), Some(executionContext))
+    }(executionContext)
   }
+  def from[A](future: Future[A]): Signal[A] = from(future, Threading.executionContext)
+  def from[A](future: CancellableFuture[A]): Signal[A] = from(future.future, Threading.executionContext)
+  def from[A](future: CancellableFuture[A], executionContext: ExecutionContext): Signal[A] = from(future.future, executionContext)
 
   def from[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
     private lazy val subscription = source {

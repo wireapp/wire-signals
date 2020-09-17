@@ -72,7 +72,6 @@ class LimitedDispatchQueue(concurrencyLimit: Int = 1,
         dispatchExecutor() // to prevent race condition when executor has just finished
 
     override def run(): Unit = {
-
       @tailrec
       def executeBatch(counter: Int = 0): Unit = Option(queue.poll()) match {
         case None => // done

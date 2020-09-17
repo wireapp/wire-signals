@@ -3,11 +3,14 @@ package com.wire.signals
 import java.util.concurrent.atomic.AtomicReference
 
 import com.wire.signals.utils._
+import org.scalatest.Matchers.fail
+import org.threeten.bp.temporal.TemporalUnit
 import org.threeten.bp.{Duration, Instant}
-import scala.concurrent.duration.{FiniteDuration, _}
 
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.annotation.tailrec
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
+import scala.util.{Failure, Try}
 
 package object testutils {
 
@@ -68,4 +71,28 @@ package object testutils {
 
   def result[A](future: Future[A])(implicit duration: FiniteDuration = DefaultTimeout): A =
     Await.result(future, duration)
+
+  def tryResult[A](future: Future[A])(implicit duration: FiniteDuration = DefaultTimeout): Try[A] =
+    try {
+      Try(Await.result(future, duration))
+    } catch {
+      case t: Throwable => Failure(t)
+    }
+
+  /**
+    * Very useful for checking that something DOESN'T happen (e.g., ensure that a signal doesn't get updated after
+    * performing a series of actions)
+    */
+  def awaitAllTasks(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue) = {
+    if (!tasksCompletedAfterWait) fail(new TimeoutException(s"Background tasks didn't complete in ${timeout.toSeconds} seconds"))
+  }
+
+  def tasksRemaining(implicit dq: DispatchQueue) = dq.hasRemainingTasks
+
+  private def tasksCompletedAfterWait(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue) = {
+    val start = Instant.now
+    val before = start.plusMillis(timeout.toMillis)
+    while(tasksRemaining && Instant.now().isBefore(before)) Thread.sleep(10)
+    !tasksRemaining
+  }
 }

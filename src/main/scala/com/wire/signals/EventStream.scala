@@ -45,6 +45,15 @@ object EventStream {
     }
     override protected def onUnwire(): Unit = source.unsubscribe(this)
   }
+
+  def from[A](future: Future[A], executionContext: ExecutionContext): EventStream[A] = returning(new EventStream[A]) { stream =>
+    future.foreach {
+      stream.dispatch(_, Some(executionContext))
+    }(executionContext)
+  }
+  def from[A](future: Future[A]): EventStream[A] = from(future, Threading.executionContext)
+  def from[A](future: CancellableFuture[A], executionContext: ExecutionContext): EventStream[A] = from(future.future, executionContext)
+  def from[A](future: CancellableFuture[A]): EventStream[A] = from(future.future)
 }
 
 class SourceStream[E] extends EventStream[E] {
@@ -104,8 +113,8 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
 }
 
 abstract class ProxyEventStream[A, E](sources: EventStream[A]*) extends EventStream[E] with EventListener[A] {
-  override protected def onWire(): Unit = sources foreach (_.subscribe(this))
-  override protected[signals] def onUnwire(): Unit = sources foreach (_.unsubscribe(this))
+  override protected def onWire(): Unit = sources.foreach(_.subscribe(this))
+  override protected[signals] def onUnwire(): Unit = sources.foreach(_.unsubscribe(this))
 }
 
 final private[signals] class MapEventStream[E, V](source: EventStream[E], f: E => V)
