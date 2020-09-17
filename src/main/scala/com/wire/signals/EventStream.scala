@@ -34,7 +34,7 @@ private[signals] trait EventListener[E] {
 object EventStream {
   def apply[A]() = new SourceStream[A]
 
-  def zip[A](streams: EventStream[A]*): EventStream[A] = new UnionEventStream(streams: _*)
+  def zip[A](streams: EventStream[A]*): EventStream[A] = new ZipEventStream(streams: _*)
 
   def from[A](source: Signal[A]): EventStream[A] with SignalListener = new EventStream[A] with SignalListener { stream =>
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized { source.value foreach (dispatch(_, ec)) }
@@ -82,7 +82,7 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   def filter(f: E => Boolean): EventStream[E] = new FilterEventStream[E](this, f)
   def collect[V](pf: PartialFunction[E, V]) = new CollectEventStream[E, V](this, pf)
   def scan[V](zero: V)(f: (V, E) => V): EventStream[V] = new ScanEventStream[E, V](this, zero, f)
-  def union(stream: EventStream[E]): EventStream[E] = new UnionEventStream[E](this, stream)
+  def zip(stream: EventStream[E]): EventStream[E] = new ZipEventStream[E](this, stream)
 
   def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext): Unit = foreach(sourceStream ! _)
 
@@ -161,7 +161,7 @@ final private[signals] class FilterEventStream[E](source: EventStream[E], f: E =
     if (f(event)) dispatch(event, sourceContext)
 }
 
-final private[signals] class UnionEventStream[E](sources: EventStream[E]*)
+final private[signals] class ZipEventStream[E](sources: EventStream[E]*)
   extends ProxyEventStream[E, E](sources: _*) {
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
     dispatch(event, sourceContext)

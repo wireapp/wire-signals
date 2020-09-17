@@ -1,3 +1,5 @@
+// based on http://caryrobbins.com/dev/sbt-publishing/
+
 name := "wire-signals"
 organization in ThisBuild := "com.wire"
 
