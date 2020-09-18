@@ -72,17 +72,13 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
     }
 
     scenario("Pausing, resuming and destroying a normal event context") {
-      implicit val ec: EventContext = new EventContext {}
+      implicit val ec: EventContext = EventContext()
+      ec.isContextStarted shouldEqual true
       val s = Signal(0)
       s(capture)
-
-      ec.isContextStarted shouldEqual false
-      s.hasSubscribers shouldEqual false
+      s.hasSubscribers shouldEqual true
       Seq(1, 2) foreach (s ! _)
-
-      ec.onContextStart()
       s ! 3
-      ec.isContextStarted shouldEqual true
       s.hasSubscribers shouldEqual true
 
       ec.onContextStop()
@@ -100,7 +96,7 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       ec.isContextStarted shouldEqual false
       s.hasSubscribers shouldEqual false
 
-      received shouldEqual Seq(2, 3, 5, 6, 7)
+      received shouldEqual Seq(0, 1, 2, 3, 5, 6, 7)
     }
 
     scenario("Pausing, resuming and destroying a normal event context, but with forced event sources") {

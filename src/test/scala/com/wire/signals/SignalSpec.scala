@@ -181,7 +181,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
     scenario("Concurrent updates with incremental values with serial dispatch queue") {
-      val dispatcher = DispatchQueue(1)
+      val dispatcher = SerialDispatchQueue()
       incrementalUpdates((s, r) => s.on(dispatcher) {
         r.add
       })
@@ -194,7 +194,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
     scenario("Concurrent updates with incremental values and onChanged listener with serial dispatch queue") {
-      val dispatcher = DispatchQueue(1)
+      val dispatcher = SerialDispatchQueue()
       incrementalUpdates((s, r) => s.onChanged.on(dispatcher) {
         r.add
       })

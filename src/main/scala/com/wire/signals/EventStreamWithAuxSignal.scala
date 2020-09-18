@@ -37,7 +37,3 @@ class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) ext
     aux.unsubscribe(auxListener)
   }
 }
-
-object EventStreamWithAuxSignal {
-
-}

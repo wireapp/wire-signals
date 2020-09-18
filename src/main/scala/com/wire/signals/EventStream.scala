@@ -36,7 +36,7 @@ object EventStream {
 
     override protected def onWire(): Unit = {
       source.subscribe(this)
-      source.value foreach (dispatch(_, None))
+      source.value.foreach(dispatch(_, None))
     }
     override protected def onUnwire(): Unit = source.unsubscribe(this)
   }
@@ -81,7 +81,7 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
                     (implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
-  def foreach(op: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription = apply(op)(context)
+  def foreach(op: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription = apply(op)
 
   def map[V](f: E => V): EventStream[V] = new MapEventStream[E, V](this, f)
   def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
@@ -127,7 +127,7 @@ final private[signals] class FutureEventStream[E, V](source: EventStream[E], f: 
   private val key = randomUUID()
 
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
-    Serialized.future(key)(f(event).andThen {
+    Serialized.future(key.toString)(f(event).andThen {
       case Success(v) => dispatch(v, sourceContext)
       case Failure(_: NoSuchElementException) => // do nothing to allow Future.filter/collect
       case Failure(_) =>

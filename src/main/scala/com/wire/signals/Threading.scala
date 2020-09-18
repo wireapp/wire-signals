@@ -2,6 +2,8 @@ package com.wire.signals
 
 import java.util.{Timer, TimerTask}
 
+import com.wire.signals.DispatchQueue.UNLIMITED
+
 import scala.concurrent.ExecutionContext
 
 object Threading {
@@ -32,5 +34,5 @@ object Threading {
 
   val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
 
-  val Default: DispatchQueue = DispatchQueue(0, ExecutionContext.global)
+  val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global)
 }

@@ -4,12 +4,14 @@ import java.security.SecureRandom
 import java.util.concurrent.{ConcurrentLinkedQueue, ExecutorService}
 import java.util.concurrent.atomic.AtomicInteger
 
+import com.wire.signals.DispatchQueue.{SERIAL, UNLIMITED, nextInt}
+
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 trait DispatchQueue extends ExecutionContext {
 
-  val name: String = "queue_" + DispatchQueue.nextInt().toHexString
+  val name: String = s"queue_${nextInt().toHexString}"
 
   /**
     * Executes a task on this queue.
@@ -25,22 +27,23 @@ trait DispatchQueue extends ExecutionContext {
 }
 
 object DispatchQueue {
+  final val UNLIMITED = 0
+  final val SERIAL    = 1
+
   private lazy val random = new SecureRandom()
 
   private[signals] def nextInt(): Int = random.nextInt
 
   def apply(concurrentTasks: Int, executor: ExecutionContext, name: Option[String]): DispatchQueue =
     concurrentTasks match {
-      case 0 => new UnlimitedDispatchQueue(executor, name)
-      case 1 => new SerialDispatchQueue(executor, name)
-      case _ => new LimitedDispatchQueue(concurrentTasks, executor, name)
+      case UNLIMITED => new UnlimitedDispatchQueue(executor, name)
+      case SERIAL    => new SerialDispatchQueue(executor, name)
+      case _         => new LimitedDispatchQueue(concurrentTasks, executor, name)
     }
 
   def apply(concurrentTasks: Int, executor: ExecutionContext): DispatchQueue = apply(concurrentTasks, executor, None)
   def apply(concurrentTasks: Int, name: String): DispatchQueue = apply(concurrentTasks, Threading.executionContext, Some(name))
   def apply(concurrentTasks: Int): DispatchQueue = apply(concurrentTasks, Threading.executionContext, None)
-  def apply(name: String): DispatchQueue = apply(0, Threading.executionContext, Some(name))
-  def apply(): DispatchQueue = apply(0, Threading.executionContext, None)
 
   def apply(concurrentTasks: Int, service: ExecutorService, name: Option[String]): DispatchQueue =
     apply(
@@ -56,10 +59,15 @@ object DispatchQueue {
   def apply(concurrentTasks: Int, service: ExecutorService, name: String): DispatchQueue = apply(concurrentTasks, service, Some(name))
 }
 
-class UnlimitedDispatchQueue(executor: ExecutionContext,
+final class UnlimitedDispatchQueue(executor: ExecutionContext,
                              private val _name: Option[String] = None) extends DispatchQueue {
-  override val name = _name.getOrElse("UnlimitedQueue")
+  override val name = _name.getOrElse(s"unlimited_${nextInt().toHexString}")
   override def execute(runnable: Runnable): Unit = executor.execute(runnable)
+}
+
+object UnlimitedDispatchQueue {
+  def apply(): DispatchQueue = new UnlimitedDispatchQueue(Threading.executionContext, None)
+  def apply(name: String): DispatchQueue = new UnlimitedDispatchQueue(Threading.executionContext, Some(name))
 }
 
 /**
@@ -70,8 +78,8 @@ class LimitedDispatchQueue(concurrencyLimit: Int,
                            parent: ExecutionContext,
                            private val _name: Option[String])
   extends DispatchQueue {
-  override val name = _name.getOrElse("LimitedQueue")
-  require(concurrencyLimit > 0, "concurrencyLimit should be greater than 0")
+  override val name = _name.getOrElse(s"limited_${nextInt().toHexString}")
+  require(concurrencyLimit > UNLIMITED, s"concurrencyLimit should be greater than $UNLIMITED")
 
   override def execute(runnable: Runnable): Unit = Executor.dispatch(runnable)
 
@@ -124,14 +132,14 @@ object LimitedDispatchQueue {
   val MaxBatchSize = 100
 }
 
-class SerialDispatchQueue(executor: ExecutionContext,
+final class SerialDispatchQueue(executor: ExecutionContext,
                           private val _name: Option[String])
-  extends LimitedDispatchQueue(1, executor, _name) {
-  override val name: String = "serial_" + DispatchQueue.nextInt().toHexString
+  extends LimitedDispatchQueue(SERIAL, executor, _name) {
+  override val name: String = s"serial_${nextInt().toHexString}"
 }
 
 object SerialDispatchQueue {
-  def apply(): DispatchQueue = DispatchQueue(1)
-  def apply(name: String): DispatchQueue = DispatchQueue(1, name)
+  def apply(): DispatchQueue = new SerialDispatchQueue(Threading.executionContext, None)
+  def apply(name: String): DispatchQueue = new SerialDispatchQueue(Threading.executionContext, Some(name))
 }
 

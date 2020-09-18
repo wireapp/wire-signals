@@ -238,7 +238,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     * @todo timeout should generate different exception
     *
     * @param timeout FiniteDuration
-    * @throws TimeoutException if the future is not completed after the given timeout
+    * @throws scala.concurrent.TimeoutException if the future is not completed after the given timeout
     * @return The current cancellable future
     */
   def withTimeout(timeout: FiniteDuration)(implicit ec: ExecutionContext): CancellableFuture[T] = {
