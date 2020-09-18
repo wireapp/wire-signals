@@ -99,8 +99,10 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
   }
 
   feature("EventStream from a future") {
+    implicit val dq: DispatchQueue = SerialDispatchQueue()
+    Threading.setAsDefault(dq)
+    
     scenario("emit an event when a future is successfully completed") {
-      implicit val dq: DispatchQueue = SerialDispatchQueue()
       val promise = Promise[Int]()
       val resPromise = Promise[Int]()
 

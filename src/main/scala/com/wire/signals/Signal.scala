@@ -18,14 +18,43 @@
 package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicBoolean
+
 import Subscription.Subscriber
+import com.wire.signals.Signal.SignalSubscription
 import utils._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
+import scala.util.Try
 
 object Signal {
+  final class SignalSubscription[E](source:           Signal[E],
+                                   subscriber:       Subscriber[E],
+                                   executionContext: Option[ExecutionContext] = None
+                                  )(implicit context: WeakReference[EventContext])
+    extends BaseSubscription(context) with SignalListener {
+
+    override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
+      source.value.foreach { event =>
+        if (subscribed)
+          executionContext match {
+            case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+              Future(if (subscribed) Try(subscriber(event)))(ec)
+            case _ =>
+              subscriber(event)
+          }
+      }
+    }
+
+    override protected[signals] def onSubscribe(): Unit = {
+      source.subscribe(this)
+      changed(None) // refresh listener with current value
+    }
+
+    override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  }
+
   def apply[A]() = new SourceSignal[A] with NoAutowiring
 
   def apply[A](e: A) = new SourceSignal[A](Some(e)) with NoAutowiring
@@ -91,23 +120,6 @@ object Signal {
 
     override protected def onUnwire(): Unit = subscription.disable()
   }
-}
-
-class SourceSignal[A](v: Option[A] = None) extends Signal(v) {
-  def !(value: A): Unit = publish(value)
-
-  override def publish(value: A, currentContext: ExecutionContext): Unit = super.publish(value, currentContext)
-
-  def mutate(f: A => A): Boolean = update(_.map(f))
-
-  def mutate(f: A => A, currentContext: ExecutionContext): Boolean = update(_.map(f), Some(currentContext))
-
-  def mutateOrDefault(f: A => A, default: A): Boolean = update(_.map(f).orElse(Some(default)))
-}
-
-trait SignalListener {
-  // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
-  def changed(currentContext: Option[ExecutionContext]): Unit
 }
 
 class Signal[A](@volatile protected[signals] var value: Option[A] = None)
@@ -243,43 +255,6 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
 
 trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()
-}
-
-/**
-  * Immutable signal value. Can be used whenever some constant or empty signal is needed.
-  * Using immutable signals in flatMap chains should have better performance compared to regular signals with the same value.
-  */
-final private[signals] class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring {
-  override def subscribe(l: SignalListener): Unit = ()
-
-  override def unsubscribe(l: SignalListener): Unit = ()
-
-  override protected[signals] def update(f: Option[A] => Option[A], ec: Option[ExecutionContext]): Boolean =
-    throw new UnsupportedOperationException("Const signal can not be updated")
-
-  override protected[signals] def set(v: Option[A], ec: Option[ExecutionContext]): Unit =
-    throw new UnsupportedOperationException("Const signal can not be changed")
-}
-
-final private[signals] class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends ProxySignal[A](source) {
-
-  import scala.concurrent.duration._
-
-  private val waiting = new AtomicBoolean(false)
-  @volatile private var lastDispatched = 0L
-
-  override protected def computeValue(current: Option[A]): Option[A] = source.value
-
-  override private[signals] def notifyListeners(ec: Option[ExecutionContext]): Unit =
-    if (waiting.compareAndSet(false, true)) {
-      val context = ec.getOrElse(Threading.executionContext)
-      val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
-      CancellableFuture.delayed(d.millis) {
-        lastDispatched = System.currentTimeMillis()
-        waiting.set(false)
-        super.notifyListeners(Some(context))
-      }(context)
-    }
 }
 
 abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalListener {
