@@ -17,9 +17,12 @@
  */
 package com.wire.signals
 
+import com.wire.signals.testutils.result
 import utils._
 import org.scalatest.{BeforeAndAfter, FeatureSpec, Matchers, OptionValues}
 
+import scala.language.postfixOps
+import scala.concurrent.duration._
 import scala.concurrent.Promise
 
 class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
@@ -120,6 +123,16 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       promise.failure(new IllegalArgumentException)
 
       testutils.tryResult(resPromise.future).isFailure shouldBe true
+    }
+
+    scenario("emit an event after delay by wrapping a cancellable future") {
+      val t = System.currentTimeMillis()
+      val ev = for {
+        _ <- EventStream.from(CancellableFuture.delay(1 seconds))
+        x = System.currentTimeMillis() - t
+      } yield x
+
+      result(ev.future) > 1000 shouldBe true
     }
   }
 
