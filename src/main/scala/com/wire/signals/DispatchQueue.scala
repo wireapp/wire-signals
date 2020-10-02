@@ -41,10 +41,6 @@ object DispatchQueue {
       case _         => new LimitedDispatchQueue(concurrentTasks, executor, name)
     }
 
-  def apply(concurrentTasks: Int, executor: ExecutionContext): DispatchQueue = apply(concurrentTasks, executor, None)
-  def apply(concurrentTasks: Int, name: String): DispatchQueue = apply(concurrentTasks, Threading.executionContext, Some(name))
-  def apply(concurrentTasks: Int): DispatchQueue = apply(concurrentTasks, Threading.executionContext, None)
-
   def apply(concurrentTasks: Int, service: ExecutorService, name: Option[String]): DispatchQueue =
     apply(
       concurrentTasks,
@@ -54,13 +50,10 @@ object DispatchQueue {
       },
       name
     )
-
-  def apply(concurrentTasks: Int, service: ExecutorService): DispatchQueue = apply(concurrentTasks, service, None)
-  def apply(concurrentTasks: Int, service: ExecutorService, name: String): DispatchQueue = apply(concurrentTasks, service, Some(name))
 }
 
-final class UnlimitedDispatchQueue(executor: ExecutionContext,
-                             private val _name: Option[String] = None) extends DispatchQueue {
+final class UnlimitedDispatchQueue private[signals] (executor: ExecutionContext, private val _name: Option[String] = None)
+  extends DispatchQueue {
   override val name = _name.getOrElse(s"unlimited_${nextInt().toHexString}")
   override def execute(runnable: Runnable): Unit = executor.execute(runnable)
 }
@@ -74,9 +67,7 @@ object UnlimitedDispatchQueue {
   * Execution context limiting number of concurrently executing tasks.
   * All tasks are executed on parent execution context.
   */
-class LimitedDispatchQueue(concurrencyLimit: Int,
-                           parent: ExecutionContext,
-                           private val _name: Option[String])
+class LimitedDispatchQueue private[signals] (concurrencyLimit: Int, parent: ExecutionContext, private val _name: Option[String])
   extends DispatchQueue {
   override val name = _name.getOrElse(s"limited_${nextInt().toHexString}")
   require(concurrencyLimit > UNLIMITED, s"concurrencyLimit should be greater than $UNLIMITED")
@@ -132,8 +123,7 @@ object LimitedDispatchQueue {
   val MaxBatchSize = 100
 }
 
-final class SerialDispatchQueue(executor: ExecutionContext,
-                          private val _name: Option[String])
+final class SerialDispatchQueue private[signals] (executor: ExecutionContext, private val _name: Option[String])
   extends LimitedDispatchQueue(SERIAL, executor, _name) {
   override val name: String = s"serial_${nextInt().toHexString}"
 }

@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 import com.wire.signals.utils._
 import org.scalatest.Matchers.fail
-import org.threeten.bp.temporal.TemporalUnit
 import org.threeten.bp.{Duration, Instant}
 
 import scala.concurrent.duration.{FiniteDuration, _}

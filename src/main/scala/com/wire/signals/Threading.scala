@@ -34,5 +34,5 @@ object Threading {
 
   val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
 
-  val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global)
+  val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global, None)
 }
