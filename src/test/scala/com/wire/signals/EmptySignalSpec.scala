@@ -24,7 +24,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
   feature("Uninitialized signals") {
     scenario("Value of an uninitialized signal") {
       val signal = Signal[Int]()
-      signal.currentValue shouldBe empty
+      signal.currentValue shouldEqual None
       signal ! 1
       signal.currentValue.value shouldEqual 1
     }
@@ -32,7 +32,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
     scenario("Subscribing to an uninitialized signal") {
       val signal = Signal[Int]()
       val fan = Follower(signal).subscribed
-      fan.lastReceived shouldBe empty
+      fan.lastReceived shouldEqual None
       signal ! 1
       fan.lastReceived.value shouldEqual 1
     }
@@ -40,7 +40,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
     scenario("Mapping an uninitialized signal") {
       val signal = Signal[Int]()
       val chain = signal.map(_ + 42)
-      chain.currentValue shouldBe empty
+      chain.currentValue shouldEqual None
       signal ! 1
       chain.currentValue.value shouldEqual 43
     }
@@ -49,7 +49,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val signal = Signal[Int]()
       val chain = signal.map(_ + 42)
       val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
+      fan.lastReceived shouldEqual None
       signal ! 1
       fan.lastReceived.value shouldEqual 43
     }
@@ -60,7 +60,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val signalA = Signal(1)
       val signalB = Signal[Int]()
       val chain = signalA.flatMap(a => signalB.map(b => a + b))
-      chain.currentValue shouldBe empty
+      chain.currentValue shouldEqual None
       signalB ! 42
       chain.currentValue.value shouldEqual 43
     }
@@ -70,7 +70,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val signalB = Signal[Int]()
       val chain = signalA.flatMap(a => signalB.map(b => a + b))
       val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
+      fan.lastReceived shouldEqual None
       signalB ! 42
       fan.lastReceived.value shouldEqual 43
     }
@@ -80,7 +80,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val signalB = Signal[String]()
       val chain = signalA.zip(signalB)
       val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
+      fan.lastReceived shouldEqual None
       signalB ! "one"
       fan.lastReceived.value shouldEqual(1, "one")
     }
@@ -90,7 +90,7 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val signalB = Signal[Int]()
       val chain = signalA.combine(signalB)(_ + _)
       val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
+      fan.lastReceived shouldEqual None
       signalB ! 42
       fan.lastReceived.value shouldEqual 43
     }
@@ -99,8 +99,8 @@ class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with B
       val signalA = Signal(1)
       val chain = signalA.filter(_ % 2 == 0).map(_ + 42)
       val fan = Follower(chain).subscribed
-      chain.currentValue shouldBe empty
-      fan.received shouldBe empty
+      chain.currentValue shouldEqual None
+      fan.received shouldEqual Vector.empty
 
       signalA ! 2
       chain.currentValue shouldEqual Some(44)

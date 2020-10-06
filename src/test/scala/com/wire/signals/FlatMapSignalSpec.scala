@@ -65,7 +65,7 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       val signal = Signal[Int]()
       val chain = signal.flatMap(_ => Signal(42))
 
-      chain.currentValue shouldBe empty
+      chain.currentValue shouldEqual None
       signal ! Int.MaxValue
       chain.currentValue.value shouldEqual 42
     }
@@ -76,8 +76,8 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       val signalB = Signal[String]()
       val chain = signal.flatMap(n => if (n % 2 == 0) signalA else signalB)
       val fan = Follower(chain).subscribed
-      chain.currentValue shouldBe empty
-      fan.received shouldBe empty
+      chain.currentValue shouldEqual None
+      fan.received shouldEqual Vector.empty
 
       signalA ! "a"
       chain.currentValue.value shouldEqual "a"
@@ -109,16 +109,16 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       s1 ! 3
       s2 ! 4
 
-      s.hasSubscribers shouldEqual true
-      s1.hasSubscribers shouldEqual true
-      s2.hasSubscribers shouldEqual false
-      fm.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
+      s1.hasListeners shouldEqual true
+      s2.hasListeners shouldEqual false
+      fm.hasListeners shouldEqual true
 
       sub.destroy()
-      s.hasSubscribers shouldEqual false
-      s1.hasSubscribers shouldEqual false
-      s2.hasSubscribers shouldEqual false
-      fm.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
+      s1.hasListeners shouldEqual false
+      s2.hasListeners shouldEqual false
+      fm.hasListeners shouldEqual false
 
       s1 ! 5
       s ! 1

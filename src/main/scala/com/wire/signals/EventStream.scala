@@ -19,14 +19,35 @@ package com.wire.signals
 
 import java.util.UUID.randomUUID
 
-import Events.Subscriber
+import com.wire.signals.EventStream.EventStreamSubscription
+import com.wire.signals.Subscription.Subscriber
 import utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object EventStream {
+  final class EventStreamSubscription[E](source:           EventStream[E],
+                                         subscriber:       Subscriber[E],
+                                         executionContext: Option[ExecutionContext] = None
+                                        )(implicit context: WeakReference[EventContext])
+    extends BaseSubscription(context) with EventListener[E] {
+
+    override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
+      if (subscribed)
+        executionContext match {
+          case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+            Future(if (subscribed) Try(subscriber(event)))(ec)
+          case _ =>
+            subscriber(event)
+        }
+
+    override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
+
+    override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  }
+
   def apply[A]() = new SourceStream[A]
 
   def zip[A](streams: EventStream[A]*): EventStream[A] = new ZipEventStream(streams: _*)
@@ -72,14 +93,22 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
 
   protected def publish(event: E): Unit = dispatch(event, None)
 
+  protected def createSubscription(subscriber: Subscriber[E], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
+    (executionContext, eventContext) match {
+      case (Some(ec), Some(evc)) => new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(evc))
+      case (Some(ec), None)      => new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(EventContext.Global))
+      case (None, Some(evc))     => new EventStreamSubscription[E](this, subscriber, None)(WeakReference(evc))
+      case (None, None)          => new EventStreamSubscription[E](this, subscriber, None)(WeakReference(EventContext.Global))
+    }
+
   override def on(ec: ExecutionContext)
                  (subscriber: Subscriber[E])
                  (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+    returning(new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
   override def apply(subscriber: Subscriber[E])
                     (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+    returning(new EventStreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
   def foreach(op: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription = apply(op)
 

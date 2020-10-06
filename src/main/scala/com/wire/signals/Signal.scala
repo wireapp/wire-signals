@@ -17,16 +17,42 @@
  */
 package com.wire.signals
 
-import java.util.concurrent.atomic.AtomicBoolean
-
-import Events.Subscriber
+import com.wire.signals.Signal.SignalSubscription
+import com.wire.signals.Subscription.Subscriber
 import utils._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
+import scala.util.Try
 
 object Signal {
+  final class SignalSubscription[E](source:           Signal[E],
+                                    subscriber:       Subscriber[E],
+                                    executionContext: Option[ExecutionContext] = None
+                                   )(implicit context: WeakReference[EventContext])
+    extends BaseSubscription(context) with SignalListener {
+
+    override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
+      source.value.foreach { event =>
+        if (subscribed)
+          executionContext match {
+            case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+              Future(if (subscribed) Try(subscriber(event)))(ec)
+            case _ =>
+              subscriber(event)
+          }
+      }
+    }
+
+    override protected[signals] def onSubscribe(): Unit = {
+      source.subscribe(this)
+      changed(None) // refresh listener with current value
+    }
+
+    override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  }
+
   def apply[A]() = new SourceSignal[A] with NoAutowiring
 
   def apply[A](e: A) = new SourceSignal[A](Some(e)) with NoAutowiring
@@ -217,6 +243,14 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
 
   override def apply(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[A](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+
+  protected def createSubscription(subscriber: Subscriber[A], executionContext: Option[ExecutionContext], eventContext: Option[EventContext]): Subscription =
+    (executionContext, eventContext) match {
+      case (Some(ec), Some(evc)) => new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(evc))
+      case (Some(ec), None)      => new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(EventContext.Global))
+      case (None, Some(evc))     => new SignalSubscription[A](this, subscriber, None)(WeakReference(evc))
+      case (None, None)          => new SignalSubscription[A](this, subscriber, None)(WeakReference(EventContext.Global))
+    }
 
   protected def publish(value: A): Unit = set(Some(value))
 

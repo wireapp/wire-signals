@@ -39,17 +39,17 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       a ! 1
 
       withClue("mapped event stream should have subscriber after element emitting from source event stream.") {
-        b.hasSubscribers shouldBe true
+        b.hasListeners shouldBe true
       }
 
       subscription.unsubscribe()
 
       withClue("source event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream") {
-        a.hasSubscribers shouldBe false
+        a.hasListeners shouldBe false
       }
 
       withClue("mapped event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream") {
-        b.hasSubscribers shouldBe false
+        b.hasListeners shouldBe false
       }
     }
 
@@ -67,7 +67,7 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       a ! "a"
 
       withClue("mapped event stream 'b' should have subscriber after first element emitting from source event stream.") {
-        b.hasSubscribers shouldBe true
+        b.hasListeners shouldBe true
       }
 
       b ! "b"
@@ -79,11 +79,11 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       a ! "a"
 
       withClue("mapped event stream 'b' should have no subscribers after second element emitting from source event stream.") {
-        b.hasSubscribers shouldBe false
+        b.hasListeners shouldBe false
       }
 
       withClue("mapped event stream 'c' should have subscriber after second element emitting from source event stream.") {
-        c.hasSubscribers shouldBe true
+        c.hasListeners shouldBe true
       }
 
       c ! "c"

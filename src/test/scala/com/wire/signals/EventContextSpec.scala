@@ -29,21 +29,6 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
     received = Seq[Int]()
   }
 
-  feature("Removing event observers") {
-    scenario("Removing") {
-      forAll(Table(
-        ("input", "to remove", "result"),
-        (Vector("a", "b", "c", "d"), "b", Vector("a", "c", "d")),
-        (Vector("a", "b", "c", "d"), "a", Vector("b", "c", "d")),
-        (Vector("a", "b", "c", "d"), "d", Vector("a", "b", "c")),
-        (Vector("a", "b", "c", "d"), "e", Vector("a", "b", "c", "d")),
-        (Vector("a", "b", "b", "c", "d"), "b", Vector("a", "b", "c", "d")))) { (in: Vector[String], remove: String, result: Vector[String]) =>
-
-        Events.removeObserver(in, remove) shouldEqual result
-      }
-    }
-  }
-
   feature("Event context lifecycle") {
     scenario("Pausing, resuming and destroying the global event context") {
       implicit val ec: EventContext = EventContext.Global
@@ -51,22 +36,22 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       s(capture)
 
       ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextStop()
+      ec.stop()
       s ! 2
       ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextStart()
+      ec.start()
       s ! 3
       ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextDestroy()
+      ec.destroy()
       s ! 4
       ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
       received shouldEqual Seq(1, 2, 3, 4)
     }
@@ -74,29 +59,37 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
     scenario("Pausing, resuming and destroying a normal event context") {
       implicit val ec: EventContext = EventContext()
 
+      ec.isContextStarted shouldEqual true
+      ec.stop()
+      ec.isContextStarted shouldEqual false
+
       val s = Signal(0)
       s(capture)
-      s.hasSubscribers shouldEqual true
-      Seq(1, 2) foreach (s ! _)
-      s ! 3
-      s.hasSubscribers shouldEqual true
 
-      ec.onContextStop()
+      s.hasListeners shouldEqual false
+      Seq(1, 2) foreach (s ! _)
+
+      ec.start()
+      s ! 3
+      ec.isContextStarted shouldEqual true
+      s.hasListeners shouldEqual true
+
+      ec.stop()
       Seq(4, 5) foreach (s ! _)
       ec.isContextStarted shouldEqual false
-      s.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
 
-      ec.onContextStart()
+      ec.start()
       Seq(6, 7) foreach (s ! _)
       ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextDestroy()
+      ec.destroy()
       Seq(8, 9) foreach (s ! _)
       ec.isContextStarted shouldEqual false
-      s.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
 
-      received shouldEqual Seq(0, 1, 2, 3, 5, 6, 7)
+      received shouldEqual Seq(2, 3, 5, 6, 7)
     }
 
     scenario("Pausing, resuming and destroying a normal event context, but with forced event sources") {
@@ -104,24 +97,24 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       val s = new SourceSignal[Int](Some(0)) with ForcedEventSource[Int]
       s(capture)
 
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
       Seq(1, 2) foreach (s ! _)
 
-      ec.onContextStart()
+      ec.start()
       s ! 3
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextStop()
+      ec.stop()
       Seq(4, 5) foreach (s ! _)
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextStart()
+      ec.start()
       Seq(6, 7) foreach (s ! _)
-      s.hasSubscribers shouldEqual true
+      s.hasListeners shouldEqual true
 
-      ec.onContextDestroy()
+      ec.destroy()
       Seq(8, 9) foreach (s ! _)
-      s.hasSubscribers shouldEqual false
+      s.hasListeners shouldEqual false
 
       received shouldEqual Seq(0, 1, 2, 3, 4, 5, 6, 7)
     }
