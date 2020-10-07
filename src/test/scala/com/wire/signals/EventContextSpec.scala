@@ -29,21 +29,6 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
     received = Seq[Int]()
   }
 
-  feature("Removing event observers") {
-    scenario("Removing") {
-      forAll(Table(
-        ("input", "to remove", "result"),
-        (Vector("a", "b", "c", "d"), "b", Vector("a", "c", "d")),
-        (Vector("a", "b", "c", "d"), "a", Vector("b", "c", "d")),
-        (Vector("a", "b", "c", "d"), "d", Vector("a", "b", "c")),
-        (Vector("a", "b", "c", "d"), "e", Vector("a", "b", "c", "d")),
-        (Vector("a", "b", "b", "c", "d"), "b", Vector("a", "b", "c", "d")))) { (in: Vector[String], remove: String, result: Vector[String]) =>
-
-        Events.removeObserver(in, remove) shouldEqual result
-      }
-    }
-  }
-
   feature("Event context lifecycle") {
     scenario("Pausing, resuming and destroying the global event context") {
       implicit val ec: EventContext = EventContext.Global

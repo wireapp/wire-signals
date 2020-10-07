@@ -19,7 +19,7 @@ package com.wire.signals
 
 import java.util.UUID.randomUUID
 
-import Events.Subscriber
+import com.wire.signals.Subscription.Subscriber
 import utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}

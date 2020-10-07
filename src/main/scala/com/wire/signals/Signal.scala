@@ -17,9 +17,7 @@
  */
 package com.wire.signals
 
-import java.util.concurrent.atomic.AtomicBoolean
-
-import Events.Subscriber
+import com.wire.signals.Subscription.Subscriber
 import utils._
 
 import scala.concurrent.duration.FiniteDuration
