@@ -100,9 +100,9 @@ class BaseEventContext extends EventContext {
 
   override def destroy(): Unit = lock.synchronized {
     destroyed = true
-    val observersToDestroy = subscriptions
+    val subscriptionsToDestroy = subscriptions
     subscriptions = Set.empty
-    observersToDestroy.foreach(_.destroy())
+    subscriptionsToDestroy.foreach(_.destroy())
   }
 
   override def register(subscription: Subscription): Boolean = lock.synchronized {
