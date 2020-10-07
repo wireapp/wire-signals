@@ -96,9 +96,9 @@ trait Subscription {
   * on that source (where `this` is the subscription).
   *
   * For examples:
+ *
   * @see [[SignalSubscription]]
-  * @see [[StreamSubscription]]
-  *
+  * @see [[EventStreamSubscription]]
   * @param context A weak reference to the event context within which the subscription lives.
   */
 abstract class BaseSubscription(context: WeakReference[EventContext]) extends Subscription {
@@ -147,7 +147,7 @@ final class SignalSubscription[E](source: Signal[E],
                                  subscriber: Subscriber[E],
                                  executionContext: Option[ExecutionContext] = None
                                 )(implicit context: WeakReference[EventContext])
-  extends BaseSubscription(context) with SignalListener {
+  extends BaseSubscription(context) with SignalSubscriber {
 
   override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
     source.value.foreach { event =>
@@ -163,17 +163,17 @@ final class SignalSubscription[E](source: Signal[E],
 
   override protected[signals] def onSubscribe(): Unit = {
     source.subscribe(this)
-    changed(None) // refresh listener with current value
+    changed(None) // refresh the subscriber with current value
   }
 
   override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
 }
 
-final class StreamSubscription[E](source: EventStream[E],
-                                 subscriber: Subscriber[E],
-                                 executionContext: Option[ExecutionContext] = None
+final class EventStreamSubscription[E](source: EventStream[E],
+                                      subscriber: Subscriber[E],
+                                      executionContext: Option[ExecutionContext] = None
                                 )(implicit context: WeakReference[EventContext])
-  extends BaseSubscription(context) with EventListener[E] {
+  extends BaseSubscription(context) with EventSubscriber[E] {
 
   override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
     if (subscribed)

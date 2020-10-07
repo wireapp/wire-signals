@@ -16,14 +16,14 @@ class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends Prox
 
   override protected def computeValue(current: Option[A]): Option[A] = source.value
 
-  override private[signals] def notifyListeners(ec: Option[ExecutionContext]): Unit =
+  override protected[signals] def notifySubscribers(ec: Option[ExecutionContext]): Unit =
     if (waiting.compareAndSet(false, true)) {
       val context = ec.getOrElse(Threading.executionContext)
       val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
       delayed(d.millis) {
         lastDispatched = System.currentTimeMillis()
         waiting.set(false)
-        super.notifyListeners(Some(context))
+        super.notifySubscribers(Some(context))
       }(context)
     }
 }

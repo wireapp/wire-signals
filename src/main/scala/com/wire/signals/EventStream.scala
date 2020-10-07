@@ -31,7 +31,7 @@ object EventStream {
 
   def zip[A](streams: EventStream[A]*): EventStream[A] = new ZipEventStream(streams: _*)
 
-  def from[A](source: Signal[A]): EventStream[A] with SignalListener = new EventStream[A] with SignalListener { stream =>
+  def from[A](source: Signal[A]): EventStream[A] with SignalSubscriber = new EventStream[A] with SignalSubscriber { stream =>
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized { source.value foreach (dispatch(_, ec)) }
 
     override protected def onWire(): Unit = {
@@ -57,12 +57,12 @@ class SourceStream[E] extends EventStream[E] {
   def publish(event: E, ec: ExecutionContext): Unit = dispatch(event, Some(ec))
 }
 
-class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
+class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]] {
 
   private object dispatchMonitor
 
   private def dispatchEvent(event: E, currentExecutionContext: Option[ExecutionContext]): Unit = dispatchMonitor.synchronized {
-    notifyListeners(_.onEvent(event, currentExecutionContext))
+    notifySubscribers(_.onEvent(event, currentExecutionContext))
   }
 
   protected[signals] def dispatch(event: E, sourceContext: Option[ExecutionContext]): Unit = executionContext match {
@@ -75,11 +75,11 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   override def on(ec: ExecutionContext)
                  (subscriber: Subscriber[E])
                  (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new StreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+    returning(new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
   override def apply(subscriber: Subscriber[E])
                     (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new StreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+    returning(new EventStreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
   def foreach(op: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription = apply(op)
 
@@ -111,7 +111,7 @@ class EventStream[E] extends EventSource[E] with Observable[EventListener[E]] {
   protected def onUnwire(): Unit = {}
 }
 
-abstract class ProxyEventStream[A, E](sources: EventStream[A]*) extends EventStream[E] with EventListener[A] {
+abstract class ProxyEventStream[A, E](sources: EventStream[A]*) extends EventStream[E] with EventSubscriber[A] {
   override protected def onWire(): Unit = sources.foreach(_.subscribe(this))
   override protected[signals] def onUnwire(): Unit = sources.foreach(_.unsubscribe(this))
 }

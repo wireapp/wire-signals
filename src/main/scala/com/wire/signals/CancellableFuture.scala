@@ -30,7 +30,7 @@ import scala.util.{Failure, Success, Try}
 
 /** CancellableFuture is an object that for all practical uses works like a future
   * but enables the user to cancel the operation. A cancelled future fails with
-  * `CancellableFuture.CancelException` so the listener can differentiate between this
+  * `CancellableFuture.CancelException` so the subscriber can differentiate between this
   * and other failure reasons.
   *
   * @see https://github.com/wireapp/wire-signals/wiki/Overview

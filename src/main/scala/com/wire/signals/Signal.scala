@@ -93,7 +93,7 @@ object Signal {
 }
 
 class Signal[A](@volatile protected[signals] var value: Option[A] = None)
-  extends Observable[SignalListener] with EventSource[A] { self =>
+  extends Subscribable[SignalSubscriber] with EventSource[A] { self =>
 
   private object updateMonitor
 
@@ -105,25 +105,25 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       }
       else false
     }
-    if (changed) notifyListeners(currentContext)
+    if (changed) notifySubscribers(currentContext)
     changed
   }
 
   protected[signals] def set(v: Option[A], currentContext: Option[ExecutionContext] = None): Unit =
     if (value != v) {
       value = v
-      notifyListeners(currentContext)
+      notifySubscribers(currentContext)
     }
 
-  private[signals] def notifyListeners(currentContext: Option[ExecutionContext]): Unit =
-    super.notifyListeners(_.changed(currentContext))
+  protected[signals] def notifySubscribers(currentContext: Option[ExecutionContext]): Unit =
+    super.notifySubscribers(_.changed(currentContext))
 
   final def currentValue: Option[A] = {
     if (!wired) disableAutowiring()
     value
   }
 
-  lazy val onChanged: EventStream[A] = new EventStream[A] with SignalListener { stream =>
+  lazy val onChanged: EventStream[A] = new EventStream[A] with SignalSubscriber { stream =>
     private var prev = self.value
 
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized {
@@ -144,11 +144,11 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
     case Some(v) => Future.successful(v)
     case None =>
       val p = Promise[A]()
-      val listener = new SignalListener {
+      val subscriber = new SignalSubscriber {
         override def changed(ec: Option[ExecutionContext]): Unit = value foreach p.trySuccess
       }
-      subscribe(listener)
-      p.future.onComplete(_ => unsubscribe(listener))(Threading.executionContext)
+      subscribe(subscriber)
+      p.future.onComplete(_ => unsubscribe(subscriber))(Threading.executionContext)
       value foreach p.trySuccess
       p.future
   }
@@ -225,7 +225,7 @@ trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()
 }
 
-abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalListener {
+abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalSubscriber {
   override def onWire(): Unit = {
     sources foreach (_.subscribe(this))
     value = computeValue(value)
@@ -321,7 +321,7 @@ final private[signals] class PartialUpdateSignal[A, B](source: Signal[A])(select
       }
       else false
     }
-    if (changed) notifyListeners(currentContext)
+    if (changed) notifySubscribers(currentContext)
     changed
   }
 

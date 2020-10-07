@@ -62,7 +62,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       s.hasSubscribers shouldEqual false
     }
 
-    scenario("Don't receive events after unregistering a single observer") {
+    scenario("Don't receive events after unregistering a single subscriber") {
       val s = Signal(1)
       val sub = s(capture)
       s ! 2
@@ -73,7 +73,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       received shouldEqual Seq(1, 2)
     }
 
-    scenario("Don't receive events after unregistering all observers") {
+    scenario("Don't receive events after unregistering all subscribers") {
       val s = Signal(1)
       s(capture)
       s ! 2
@@ -130,7 +130,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
   }
 
   feature("Concurrency") {
-    scenario("Many concurrent observer changes") {
+    scenario("Many concurrent subscriber changes") {
       val barrier = new CyclicBarrier(50)
       val num = new AtomicInteger(0)
       val s = Signal(0)
@@ -187,25 +187,25 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
       })
     }
 
-    scenario("Concurrent updates with incremental values and onChanged listener") {
+    scenario("Concurrent updates with incremental values and onChanged subscriber") {
       incrementalUpdates((s, r) => s.onChanged {
         r.add
       })
     }
 
-    scenario("Concurrent updates with incremental values and onChanged listener with serial dispatch queue") {
+    scenario("Concurrent updates with incremental values and onChanged subscriber with serial dispatch queue") {
       val dispatcher = SerialDispatchQueue()
       incrementalUpdates((s, r) => s.onChanged.on(dispatcher) {
         r.add
       })
     }
 
-    def incrementalUpdates(listen: (Signal[Int], ConcurrentLinkedQueue[Int]) => Unit): Unit = {
+    def incrementalUpdates(onUpdate: (Signal[Int], ConcurrentLinkedQueue[Int]) => Unit): Unit = {
       100 times {
         val signal = Signal(0)
         val received = new ConcurrentLinkedQueue[Int]()
 
-        listen(signal, received)
+        onUpdate(signal, received)
 
         val send = new AtomicInteger(0)
         val done = new CountDownLatch(10)

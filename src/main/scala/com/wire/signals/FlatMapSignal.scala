@@ -3,7 +3,7 @@ package com.wire.signals
 import scala.concurrent.ExecutionContext
 
 final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Signal[B])
-  extends Signal[B] with SignalListener {
+  extends Signal[B] with SignalSubscriber {
   private val Empty = Signal.empty[B]
 
   private object wiringMonitor
@@ -11,7 +11,7 @@ final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Sign
   private var sourceValue: Option[A] = None
   private var mapped: Signal[B] = Empty
 
-  private val sourceListener = new SignalListener {
+  private val subscriber = new SignalSubscriber {
     // TODO: is this synchronization needed, is it enough? What if we just got unwired ?
     override def changed(currentContext: Option[ExecutionContext]): Unit = {
       val changed = wiringMonitor synchronized {
@@ -31,7 +31,7 @@ final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Sign
   }
 
   override def onWire(): Unit = wiringMonitor.synchronized {
-    source.subscribe(sourceListener)
+    source.subscribe(subscriber)
 
     val next = source.value
     if (sourceValue != next) {
@@ -44,7 +44,7 @@ final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Sign
   }
 
   override def onUnwire(): Unit = wiringMonitor.synchronized {
-    source.unsubscribe(sourceListener)
+    source.unsubscribe(subscriber)
     mapped.unsubscribe(this)
   }
 

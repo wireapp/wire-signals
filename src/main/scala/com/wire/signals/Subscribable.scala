@@ -17,47 +17,47 @@
  */
 package com.wire.signals
 
-trait Observable[Listener] {
+trait Subscribable[Subscriber] {
 
-  private object listenersMonitor
+  private object subscribersMonitor
 
   private var autowiring = true
   @volatile private[signals] var wired = false
-  @volatile private var listeners = Set.empty[Listener]
+  @volatile private var subscribers = Set.empty[Subscriber]
 
   protected def onWire(): Unit
 
   protected def onUnwire(): Unit
 
-  private[signals] def subscribe(l: Listener): Unit = listenersMonitor.synchronized {
-    listeners += l
+  def subscribe(subscriber: Subscriber): Unit = subscribersMonitor.synchronized {
+    subscribers += subscriber
     if (!wired) {
       wired = true
       onWire()
     }
   }
 
-  private[signals] def unsubscribe(l: Listener): Unit = listenersMonitor.synchronized {
-    listeners -= l
-    if (wired && autowiring && listeners.isEmpty) {
+  def unsubscribe(subscriber: Subscriber): Unit = subscribersMonitor.synchronized {
+    subscribers -= subscriber
+    if (wired && autowiring && subscribers.isEmpty) {
       wired = false
       onUnwire()
     }
   }
 
-  private[signals] def notifyListeners(invoke: Listener => Unit): Unit = listeners foreach invoke
+  def notifySubscribers(call: Subscriber => Unit): Unit = subscribers.foreach(call)
 
-  private[signals] def hasSubscribers = listeners.nonEmpty
+  def hasSubscribers = subscribers.nonEmpty
 
-  def unsubscribeAll(): Unit = listenersMonitor.synchronized {
-    listeners = Set.empty
+  def unsubscribeAll(): Unit = subscribersMonitor.synchronized {
+    subscribers = Set.empty
     if (wired && autowiring) {
       wired = false
       onUnwire()
     }
   }
 
-  def disableAutowiring(): this.type = listenersMonitor.synchronized {
+  def disableAutowiring(): this.type = subscribersMonitor.synchronized {
     autowiring = false
     if (!wired) {
       wired = true

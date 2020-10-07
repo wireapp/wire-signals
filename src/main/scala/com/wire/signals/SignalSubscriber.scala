@@ -2,15 +2,15 @@ package com.wire.signals
 
 import scala.concurrent.ExecutionContext
 
-private[signals] trait SignalListener {
+private[signals] trait SignalSubscriber {
   // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
   def changed(currentContext: Option[ExecutionContext]): Unit
 }
 
-private[signals] object SignalListener {
-  def apply(): SignalListener = new DoNothingSignalListener()
+private[signals] object SignalSubscriber {
+  def apply(): SignalSubscriber = new DoNothingSignalSubscriber()
 
-  final class DoNothingSignalListener extends SignalListener {
+  final class DoNothingSignalSubscriber extends SignalSubscriber {
     override def changed(currentContext: Option[ExecutionContext]): Unit = ()
   }
 }
