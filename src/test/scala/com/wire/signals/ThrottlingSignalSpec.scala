@@ -26,7 +26,7 @@ import org.threeten.bp.Instant
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import Threading.executionContext
+import Threading.defaultContext
 import CancellableFuture.delayed
 import com.wire.signals.testutils.Uncontended.random
 

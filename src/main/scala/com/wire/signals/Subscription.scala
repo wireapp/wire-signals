@@ -17,11 +17,7 @@
  */
 package com.wire.signals
 
-import com.wire.signals.Subscription.Subscriber
-
-import scala.concurrent.{ExecutionContext, Future}
 import scala.ref.WeakReference
-import scala.util.Try
 
 object Subscription {
   /** A function type of any function which can consume events.
@@ -97,8 +93,8 @@ trait Subscription {
   *
   * For examples:
  *
-  * @see [[SignalSubscription]]
-  * @see [[EventStreamSubscription]]
+  * @see [[Signal.SignalSubscription]]
+  * @see [[EventStream.EventStreamSubscription]]
   * @param context A weak reference to the event context within which the subscription lives.
   */
 abstract class BaseSubscription(context: WeakReference[EventContext]) extends Subscription {
@@ -143,48 +139,3 @@ abstract class BaseSubscription(context: WeakReference[EventContext]) extends Su
   }
 }
 
-final class SignalSubscription[E](source: Signal[E],
-                                 subscriber: Subscriber[E],
-                                 executionContext: Option[ExecutionContext] = None
-                                )(implicit context: WeakReference[EventContext])
-  extends BaseSubscription(context) with SignalSubscriber {
-
-  override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
-    source.value.foreach { event =>
-      if (subscribed)
-        executionContext match {
-          case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
-            Future(if (subscribed) Try(subscriber(event)))(ec)
-          case _ =>
-            subscriber(event)
-        }
-    }
-  }
-
-  override protected[signals] def onSubscribe(): Unit = {
-    source.subscribe(this)
-    changed(None) // refresh the subscriber with current value
-  }
-
-  override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
-}
-
-final class EventStreamSubscription[E](source: EventStream[E],
-                                      subscriber: Subscriber[E],
-                                      executionContext: Option[ExecutionContext] = None
-                                )(implicit context: WeakReference[EventContext])
-  extends BaseSubscription(context) with EventSubscriber[E] {
-
-  override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
-    if (subscribed)
-      executionContext match {
-        case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
-          Future(if (subscribed) Try(subscriber(event)))(ec)
-        case _ =>
-          subscriber(event)
-      }
-
-  override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
-
-  override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
-}

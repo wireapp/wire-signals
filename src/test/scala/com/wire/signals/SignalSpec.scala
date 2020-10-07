@@ -22,7 +22,7 @@ import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, CyclicBarrie
 
 import testutils._
 import org.scalatest._
-import Threading.executionContext
+import Threading.defaultContext
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
@@ -227,46 +227,46 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
     }
 
     scenario("Two concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(2, 1000, EventContext.Global, Some(executionContext), executionContext)()
+      concurrentDispatches(2, 1000, EventContext.Global, Some(defaultContext), defaultContext)()
     }
 
     scenario("Several concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(10, 200, EventContext.Global, Some(executionContext), executionContext)()
+      concurrentDispatches(10, 200, EventContext.Global, Some(defaultContext), defaultContext)()
     }
 
     scenario("Many concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(100, 200, EventContext.Global, Some(executionContext), executionContext)()
+      concurrentDispatches(100, 200, EventContext.Global, Some(defaultContext), defaultContext)()
     }
 
 
     scenario("Two concurrent dispatches (subscriber on UI eventcontext)") {
-      concurrentDispatches(2, 1000, eventContext, Some(executionContext), executionContext)()
+      concurrentDispatches(2, 1000, eventContext, Some(defaultContext), defaultContext)()
     }
 
     scenario("Several concurrent dispatches (subscriber on UI event context)") {
-      concurrentDispatches(10, 200, eventContext, Some(executionContext), executionContext)()
+      concurrentDispatches(10, 200, eventContext, Some(defaultContext), defaultContext)()
     }
 
     scenario("Many concurrent dispatches (subscriber on UI event context)") {
-      concurrentDispatches(100, 100, eventContext, Some(executionContext), executionContext)()
+      concurrentDispatches(100, 100, eventContext, Some(defaultContext), defaultContext)()
     }
 
 
     scenario("Several concurrent dispatches (global event context, no source context)") {
-      concurrentDispatches(10, 200, EventContext.Global, None, executionContext)()
+      concurrentDispatches(10, 200, EventContext.Global, None, defaultContext)()
     }
 
     scenario("Several concurrent dispatches (subscriber on UI context, no source context)") {
-      concurrentDispatches(10, 200, eventContext, None, executionContext)()
+      concurrentDispatches(10, 200, eventContext, None, defaultContext)()
     }
 
 
     scenario("Several concurrent mutations (subscriber on global event context)") {
-      concurrentMutations(10, 200, EventContext.Global, executionContext)()
+      concurrentMutations(10, 200, EventContext.Global, defaultContext)()
     }
 
     scenario("Several concurrent mutations (subscriber on UI event context)") {
-      concurrentMutations(10, 200, eventContext, executionContext)()
+      concurrentMutations(10, 200, eventContext, defaultContext)()
     }
 
   }

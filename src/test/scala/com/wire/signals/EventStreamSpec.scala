@@ -126,13 +126,13 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
     }
 
     scenario("emit an event after delay by wrapping a cancellable future") {
+      val promise = Promise[Long]
       val t = System.currentTimeMillis()
-      val ev = for {
-        _ <- EventStream.from(CancellableFuture.delay(1 seconds))
-        x = System.currentTimeMillis() - t
-      } yield x
+      val stream = EventStream.from(CancellableFuture.delay(1 seconds))
 
-      result(ev.future) > 1000 shouldBe true
+      stream { _ => promise.success(System.currentTimeMillis() - t) }
+
+      result(promise.future) >= 1000L shouldBe true
     }
   }
 

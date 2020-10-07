@@ -22,23 +22,22 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B, A) => B, stashing: Boolean = true)
+class AggregatingSignal[A, B](source: EventStream[A], loader: => Future[B], updater: (B, A) => B, stashing: Boolean = true)
   extends Signal[B] with EventSubscriber[A] {
-
   private object valueMonitor
 
   private val loadId = new AtomicReference[AnyRef]
   @volatile private var stash = Vector.empty[A]
 
   override protected[signals] def onEvent(event: A, currentContext: Option[ExecutionContext]): Unit = valueMonitor.synchronized {
-    if (loadId.get eq null) value.foreach(v => AggregatingSignal.this.set(Some(f(v, event)), currentContext))
+    if (loadId.get eq null) value.foreach(v => AggregatingSignal.this.set(Some(updater(v, event)), currentContext))
     else if (stashing) stash :+= event
   }
 
-  private def startLoading(id: AnyRef): Unit = load.onComplete {
+  private def startLoading(id: AnyRef): Unit = loader.onComplete {
     case Success(s) if loadId.get eq id =>
       valueMonitor.synchronized {
-        AggregatingSignal.this.set(Some(stash.foldLeft(s)(f)), Some(context))
+        AggregatingSignal.this.set(Some(stash.foldLeft(s)(updater)), Some(context))
         loadId.compareAndSet(id, null)
         stash = Vector.empty
       }
@@ -50,7 +49,7 @@ class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B,
   }(context)
 
 
-  private lazy val context = executionContext.getOrElse(Threading.executionContext)
+  private lazy val context = executionContext.getOrElse(Threading.defaultContext)
 
   override def onWire(): Unit = {
     stash = Vector.empty
@@ -64,5 +63,10 @@ class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B,
     loadId.set(null)
     source.unsubscribe(this)
   }
+}
+
+object AggregatingSignal {
+  def apply[A, B](source: EventStream[A], loader: => Future[B], updater: (B, A) => B, stashing: Boolean = true): AggregatingSignal[A, B]
+    = new AggregatingSignal(source, loader, updater, stashing)
 }
 

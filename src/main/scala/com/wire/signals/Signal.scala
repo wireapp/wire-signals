@@ -17,14 +17,42 @@
  */
 package com.wire.signals
 
+import com.wire.signals.Signal.SignalSubscription
 import com.wire.signals.Subscription.Subscriber
 import utils._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
+import scala.util.Try
 
 object Signal {
+  final private class SignalSubscription[E](source: Signal[E],
+                                   subscriber: Subscriber[E],
+                                   executionContext: Option[ExecutionContext] = None
+                                  )(implicit context: WeakReference[EventContext])
+    extends BaseSubscription(context) with SignalSubscriber {
+
+    override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
+      source.value.foreach { event =>
+        if (subscribed)
+          executionContext match {
+            case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+              Future(if (subscribed) Try(subscriber(event)))(ec)
+            case _ =>
+              subscriber(event)
+          }
+      }
+    }
+
+    override protected[signals] def onSubscribe(): Unit = {
+      source.subscribe(this)
+      changed(None) // refresh the subscriber with current value
+    }
+
+    override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  }
+
   def apply[A]() = new SourceSignal[A] with NoAutowiring
 
   def apply[A](e: A) = new SourceSignal[A](Some(e)) with NoAutowiring
@@ -67,8 +95,8 @@ object Signal {
       res => signal.set(Option(res), Some(executionContext))
     }(executionContext)
   }
-  def from[A](future: Future[A]): Signal[A] = from(future, Threading.executionContext)
-  def from[A](future: CancellableFuture[A]): Signal[A] = from(future.future, Threading.executionContext)
+  def from[A](future: Future[A]): Signal[A] = from(future, Threading.defaultContext)
+  def from[A](future: CancellableFuture[A]): Signal[A] = from(future.future, Threading.defaultContext)
   def from[A](future: CancellableFuture[A], executionContext: ExecutionContext): Signal[A] = from(future.future, executionContext)
 
   def from[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
@@ -148,7 +176,7 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
         override def changed(ec: Option[ExecutionContext]): Unit = value foreach p.trySuccess
       }
       subscribe(subscriber)
-      p.future.onComplete(_ => unsubscribe(subscriber))(Threading.executionContext)
+      p.future.onComplete(_ => unsubscribe(subscriber))(Threading.defaultContext)
       value foreach p.trySuccess
       p.future
   }

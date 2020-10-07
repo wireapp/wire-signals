@@ -19,14 +19,35 @@ package com.wire.signals
 
 import java.util.UUID.randomUUID
 
+import com.wire.signals.EventStream.EventStreamSubscription
 import com.wire.signals.Subscription.Subscriber
 import utils.returning
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object EventStream {
+  final private class EventStreamSubscription[E](source: EventStream[E],
+                                                subscriber: Subscriber[E],
+                                                executionContext: Option[ExecutionContext] = None
+                                               )(implicit context: WeakReference[EventContext])
+    extends BaseSubscription(context) with EventSubscriber[E] {
+
+    override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
+      if (subscribed)
+        executionContext match {
+          case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
+            Future(if (subscribed) Try(subscriber(event)))(ec)
+          case _ =>
+            subscriber(event)
+        }
+
+    override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
+
+    override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  }
+
   def apply[A]() = new SourceStream[A]
 
   def zip[A](streams: EventStream[A]*): EventStream[A] = new ZipEventStream(streams: _*)
@@ -46,15 +67,9 @@ object EventStream {
       stream.dispatch(_, Some(executionContext))
     }(executionContext)
   }
-  def from[A](future: Future[A]): EventStream[A] = from(future, Threading.executionContext)
+  def from[A](future: Future[A]): EventStream[A] = from(future, Threading.defaultContext)
   def from[A](future: CancellableFuture[A], executionContext: ExecutionContext): EventStream[A] = from(future.future, executionContext)
   def from[A](future: CancellableFuture[A]): EventStream[A] = from(future.future)
-}
-
-class SourceStream[E] extends EventStream[E] {
-  def !(event: E): Unit = publish(event)
-  override def publish(event: E): Unit = dispatch(event, None)
-  def publish(event: E, ec: ExecutionContext): Unit = dispatch(event, Some(ec))
 }
 
 class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]] {
@@ -97,7 +112,7 @@ class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]
   def next(implicit context: EventContext = EventContext.Global): CancellableFuture[E] = {
     val p = Promise[E]()
     val o = apply { p.trySuccess }
-    p.future.onComplete(_ => o.destroy())(Threading.executionContext)
+    p.future.onComplete(_ => o.destroy())(Threading.defaultContext)
     new CancellableFuture(p)
   }
 
@@ -131,7 +146,7 @@ final private[signals] class FutureEventStream[E, V](source: EventStream[E], f: 
       case Success(v) => dispatch(v, sourceContext)
       case Failure(_: NoSuchElementException) => // do nothing to allow Future.filter/collect
       case Failure(_) =>
-    }(sourceContext.orElse(executionContext).getOrElse(Threading.executionContext)))
+    }(sourceContext.orElse(executionContext).getOrElse(Threading.defaultContext)))
 }
 
 final private[signals] class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V])

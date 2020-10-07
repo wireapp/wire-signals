@@ -3,21 +3,16 @@ package com.wire.signals
 import java.util.{Timer, TimerTask}
 
 import com.wire.signals.DispatchQueue.UNLIMITED
+import com.wire.signals.utils.returning
 
 import scala.concurrent.ExecutionContext
 
 object Threading {
-  private val timer: Timer = new Timer()
+  implicit lazy val defaultContext: ExecutionContext = apply()
+  final val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
 
-  def schedule(f: () => Any, delay: Long): TimerTask = {
-    val newTask = new TimerTask {
-      override def run(): Unit = f()
-    }
-
-    timer.schedule(newTask, delay)
-
-    newTask
-  }
+  private final val timer: Timer = new Timer()
+  private lazy val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global, None)
 
   private var _instance = Option.empty[DispatchQueue]
 
@@ -30,9 +25,10 @@ object Threading {
     case None        => Default
   }
 
-  implicit lazy val executionContext: ExecutionContext = apply()
-
-  val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
-
-  val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global, None)
+  def schedule(f: () => Any, delay: Long): TimerTask =
+    returning(new TimerTask {
+      override def run(): Unit = f()
+    }) {
+      timer.schedule(_, delay)
+    }
 }

@@ -40,7 +40,7 @@ final class ClockSignal(val interval: FiniteDuration, val clock: Clock)
   def checkAndRefresh()(implicit ec: ExecutionContext): Unit =
     if (interval <= (now(clock).toEpochMilli - value.getOrElse(Instant.EPOCH).toEpochMilli).millis) refresh()
 
-  override def onWire(): Unit = refresh()(Threading.executionContext)
+  override def onWire(): Unit = refresh()(Threading.defaultContext)
 }
 
 object ClockSignal {
