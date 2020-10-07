@@ -25,7 +25,7 @@ import org.threeten.bp.Instant.now
 
 import scala.concurrent.ExecutionContext
 
-case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC())
+final class ClockSignal(interval: FiniteDuration, clock: Clock)
   extends SourceSignal[Instant](Some(now(clock))) {
 
   private var delay = CancellableFuture.successful({})
@@ -40,5 +40,9 @@ case class ClockSignal(interval: FiniteDuration, clock: Clock = Clock.systemUTC(
   def checkAndRefresh()(implicit ec: ExecutionContext): Unit =
     if (interval <= (now(clock).toEpochMilli - value.getOrElse(Instant.EPOCH).toEpochMilli).millis) refresh()
 
-  override def onWire(): Unit = refresh()(Threading.executionContext)
+  override def onWire(): Unit = refresh()(Threading.defaultContext)
+}
+
+object ClockSignal {
+  def apply(interval: FiniteDuration, clock: Clock = Clock.systemUTC()): ClockSignal = new ClockSignal(interval, clock)
 }

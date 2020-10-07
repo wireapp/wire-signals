@@ -109,16 +109,16 @@ class FlatMapSignalSpec extends FeatureSpec with OptionValues with Matchers with
       s1 ! 3
       s2 ! 4
 
-      s.hasListeners shouldEqual true
-      s1.hasListeners shouldEqual true
-      s2.hasListeners shouldEqual false
-      fm.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
+      s1.hasSubscribers shouldEqual true
+      s2.hasSubscribers shouldEqual false
+      fm.hasSubscribers shouldEqual true
 
       sub.destroy()
-      s.hasListeners shouldEqual false
-      s1.hasListeners shouldEqual false
-      s2.hasListeners shouldEqual false
-      fm.hasListeners shouldEqual false
+      s.hasSubscribers shouldEqual false
+      s1.hasSubscribers shouldEqual false
+      s2.hasSubscribers shouldEqual false
+      fm.hasSubscribers shouldEqual false
 
       s1 ! 5
       s ! 1

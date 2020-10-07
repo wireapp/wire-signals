@@ -3,36 +3,25 @@ package com.wire.signals
 import java.util.{Timer, TimerTask}
 
 import com.wire.signals.DispatchQueue.UNLIMITED
+import com.wire.signals.utils.returning
 
 import scala.concurrent.ExecutionContext
 
 object Threading {
-  private val timer: Timer = new Timer()
+  implicit lazy val defaultContext: ExecutionContext = apply()
+  final val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
 
-  def schedule(f: () => Any, delay: Long): TimerTask = {
-    val newTask = new TimerTask {
-      override def run(): Unit = f()
+  private final lazy val baseContext: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global, None)
+  private final val timer: Timer = new Timer()
+
+  final def schedule(f: () => Any, delay: Long = 0L): TimerTask =
+    returning(new TimerTask { override def run(): Unit = f() }) {
+      timer.schedule(_, delay)
     }
-
-    timer.schedule(newTask, delay)
-
-    newTask
-  }
 
   private var _instance = Option.empty[DispatchQueue]
 
-  def setAsDefault(queue: DispatchQueue): Unit = {
-    _instance = Some(queue)
-  }
+  final def setAsDefault(queue: DispatchQueue): Unit = _instance = Some(queue)
 
-  def apply(): DispatchQueue = _instance match {
-    case Some(queue) => queue
-    case None        => Default
-  }
-
-  implicit lazy val executionContext: ExecutionContext = apply()
-
-  val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
-
-  val Default: DispatchQueue = DispatchQueue(UNLIMITED, ExecutionContext.global, None)
+  final def apply(): DispatchQueue = _instance.getOrElse(baseContext)
 }

@@ -10,7 +10,6 @@ import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 trait DispatchQueue extends ExecutionContext {
-
   val name: String = s"queue_${nextInt().toHexString}"
 
   /**
@@ -30,18 +29,18 @@ object DispatchQueue {
   final val UNLIMITED = 0
   final val SERIAL    = 1
 
-  private lazy val random = new SecureRandom()
+  private final lazy val random = new SecureRandom()
 
-  private[signals] def nextInt(): Int = random.nextInt
+  final private[signals] def nextInt(): Int = random.nextInt
 
-  def apply(concurrentTasks: Int, executor: ExecutionContext, name: Option[String]): DispatchQueue =
+  final def apply(concurrentTasks: Int, executor: ExecutionContext, name: Option[String]): DispatchQueue =
     concurrentTasks match {
       case UNLIMITED => new UnlimitedDispatchQueue(executor, name)
       case SERIAL    => new SerialDispatchQueue(executor, name)
       case _         => new LimitedDispatchQueue(concurrentTasks, executor, name)
     }
 
-  def apply(concurrentTasks: Int, service: ExecutorService, name: Option[String]): DispatchQueue =
+  final def apply(concurrentTasks: Int, service: ExecutorService, name: Option[String]): DispatchQueue =
     apply(
       concurrentTasks,
       new ExecutionContext {
@@ -59,8 +58,8 @@ final class UnlimitedDispatchQueue private[signals] (executor: ExecutionContext,
 }
 
 object UnlimitedDispatchQueue {
-  def apply(): DispatchQueue = new UnlimitedDispatchQueue(Threading.executionContext, None)
-  def apply(name: String): DispatchQueue = new UnlimitedDispatchQueue(Threading.executionContext, Some(name))
+  final def apply(): DispatchQueue = new UnlimitedDispatchQueue(Threading.defaultContext, None)
+  final def apply(name: String): DispatchQueue = new UnlimitedDispatchQueue(Threading.defaultContext, Some(name))
 }
 
 /**
@@ -120,7 +119,7 @@ object LimitedDispatchQueue {
     * Maximum number of tasks to execute in single batch.
     * Used to prevent starving of other contexts using common parent.
     */
-  val MaxBatchSize = 100
+  final val MaxBatchSize = 100
 }
 
 final class SerialDispatchQueue private[signals] (executor: ExecutionContext, private val _name: Option[String])
@@ -129,7 +128,7 @@ final class SerialDispatchQueue private[signals] (executor: ExecutionContext, pr
 }
 
 object SerialDispatchQueue {
-  def apply(): DispatchQueue = new SerialDispatchQueue(Threading.executionContext, None)
-  def apply(name: String): DispatchQueue = new SerialDispatchQueue(Threading.executionContext, Some(name))
+  final def apply(): DispatchQueue = new SerialDispatchQueue(Threading.defaultContext, None)
+  final def apply(name: String): DispatchQueue = new SerialDispatchQueue(Threading.defaultContext, Some(name))
 }
 

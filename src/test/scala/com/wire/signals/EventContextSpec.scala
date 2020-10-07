@@ -36,22 +36,22 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       s(capture)
 
       ec.isContextStarted shouldEqual true
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.stop()
       s ! 2
       ec.isContextStarted shouldEqual true
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.start()
       s ! 3
       ec.isContextStarted shouldEqual true
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.destroy()
       s ! 4
       ec.isContextStarted shouldEqual true
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       received shouldEqual Seq(1, 2, 3, 4)
     }
@@ -66,28 +66,28 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       val s = Signal(0)
       s(capture)
 
-      s.hasListeners shouldEqual false
+      s.hasSubscribers shouldEqual false
       Seq(1, 2) foreach (s ! _)
 
       ec.start()
       s ! 3
       ec.isContextStarted shouldEqual true
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.stop()
       Seq(4, 5) foreach (s ! _)
       ec.isContextStarted shouldEqual false
-      s.hasListeners shouldEqual false
+      s.hasSubscribers shouldEqual false
 
       ec.start()
       Seq(6, 7) foreach (s ! _)
       ec.isContextStarted shouldEqual true
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.destroy()
       Seq(8, 9) foreach (s ! _)
       ec.isContextStarted shouldEqual false
-      s.hasListeners shouldEqual false
+      s.hasSubscribers shouldEqual false
 
       received shouldEqual Seq(2, 3, 5, 6, 7)
     }
@@ -97,24 +97,24 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       val s = new SourceSignal[Int](Some(0)) with ForcedEventSource[Int]
       s(capture)
 
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
       Seq(1, 2) foreach (s ! _)
 
       ec.start()
       s ! 3
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.stop()
       Seq(4, 5) foreach (s ! _)
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.start()
       Seq(6, 7) foreach (s ! _)
-      s.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
 
       ec.destroy()
       Seq(8, 9) foreach (s ! _)
-      s.hasListeners shouldEqual false
+      s.hasSubscribers shouldEqual false
 
       received shouldEqual Seq(0, 1, 2, 3, 4, 5, 6, 7)
     }

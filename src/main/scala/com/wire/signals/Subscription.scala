@@ -27,13 +27,13 @@ object Subscription {
   type Subscriber[-E] = E => Unit
 }
 
-/** When you add a new listener to your [[EventStream]] or [[Signal]], in return you get a [[Subscription]].
+/** When you add a new subscriber to your [[EventStream]] or [[Signal]], in return you get a [[Subscription]].
   * A subscription can then be used to inform the source about changes in the condition of the connection:
   * should it be enabled or disabled, should the lsitener be subscribed or (temporarily) unsubscribed,
   * or should the subscription be permanently destroyed.
   *
   * It is important to destroy subscriptions when they are no longer needed, e.g. at the end of the life
-  * of an object which listens to the source of events. Otherwise you may face a hidden memory leak where
+  * of an object which subscribes to the source of events. Otherwise you may face a hidden memory leak where
   * no longer used data cannot be GC-ed because it is still referenced by the source of events.
   *
   * @see [[EventContext]]
@@ -43,8 +43,8 @@ object Subscription {
   * @see [[CancellableFuture.withAutoCanceling]]
   */
 trait Subscription {
-  /** Should be called automatically when a new listener is added to the event source.
-    * Can be called manually if the listener unsubscribed, but is still enabled,
+  /** Should be called automatically when a new subscriber is added to the event source.
+    * Can be called manually if the subscriber unsubscribed, but is still enabled,
     * and now it wants again to receive events.
     */
   def subscribe(): Unit
@@ -57,9 +57,9 @@ trait Subscription {
 
   /** You can think of `enable()`/`disable()` as of `subscribe()`/`unsubscribe()` on a higher level.
     * In the default implementation, `enable()` is called automatically when the subscription is created,
-    * and it calls `subscribe()`. Later, the listener can `unsubscribe()` but the subscription will stay enabled,
-    * whereas if the listener calls `disable()`, it will in turn call `unsubscribe()`, but a simple re-subscribing
-    * will not work - instead, the listener will have to work `enable()` again.
+    * and it calls `subscribe()`. Later, the subscriber can `unsubscribe()` but the subscription will stay enabled,
+    * whereas if the subscriber calls `disable()`, it will in turn call `unsubscribe()`, but a simple re-subscribing
+    * will not work - instead, the subscriber will have to work `enable()` again.
     *
     * In practice, `enable()`/`disable()` make sense if you work with custom [[EventContext]].
     * Otherwise you can use `subscribe()`/`unsubscribe()` instead.
@@ -70,17 +70,17 @@ trait Subscription {
 
   /** You can think of `enable()`/`disable()` as of `subscribe()`/`unsubscribe()` on a higher level.
     * In the default implementation, `enable()` is called automatically when the subscription is created,
-    * and it calls `subscribe()`. Later, the listener can `disable()` the subscription, which will call `unsubscribe()`.
-    * If the listener simply calls `unsubscribe()` without disabling, nothing will happen.
+    * and it calls `subscribe()`. Later, the subscriber can `disable()` the subscription, which will call `unsubscribe()`.
+    * If the subscriber simply calls `unsubscribe()` without disabling, nothing will happen.
     *
-    * In practice, usually you should use `enable()`/`disable()` for temporarily stopping and restarting listening events,
+    * In practice, usually you should use `enable()`/`disable()` for temporarily stopping and restarting,
     * and use `subscribe()`/`unsubscribe()` only in custom event contexts.
     *
     * @see [[EventContext]]
     */
   def disable(): Unit
 
-  /** In the default implementation, you can call this to prevent the listener from unsubscribing.
+  /** In the default implementation, you can call this to prevent the subscriber from unsubscribing.
     * The subscription will stay subscribed until destroyed.
     */
   def disablePauseWithContext(): Unit
@@ -88,7 +88,7 @@ trait Subscription {
 
 /** Provides the default implementation of the [[Subscription]] trait.
   * Exposes two new abstract methods: `onSubscribe` and `onUnsubscribe`. A typical way to implement them is
-  * to have a reference to the source of events which implements the [[Observable]] trait and call `subscribe(this)`
+  * to have a reference to the source of events which implements the [[Subscribable]] trait and call `subscribe(this)`
   * on that source (where `this` is the subscription).
   *
   * For examples:

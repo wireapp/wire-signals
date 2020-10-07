@@ -23,7 +23,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B, A) => B, stashing: Boolean = true)
-  extends Signal[B] with EventListener[A] {
+  extends Signal[B] with EventSubscriber[A] {
 
   private object valueMonitor
 
@@ -50,7 +50,7 @@ class AggregatingSignal[A, B](source: EventStream[A], load: => Future[B], f: (B,
   }(context)
 
 
-  private lazy val context = executionContext.getOrElse(Threading.executionContext)
+  private lazy val context = executionContext.getOrElse(Threading.defaultContext)
 
   override def onWire(): Unit = {
     stash = Vector.empty

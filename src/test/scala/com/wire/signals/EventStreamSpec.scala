@@ -17,7 +17,7 @@
  */
 package com.wire.signals
 
-import com.wire.signals.testutils.result
+import com.wire.signals.testutils.{awaitAllTasks, result}
 import utils._
 import org.scalatest.{BeforeAndAfter, FeatureSpec, Matchers, OptionValues}
 
@@ -39,17 +39,17 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       a ! 1
 
       withClue("mapped event stream should have subscriber after element emitting from source event stream.") {
-        b.hasListeners shouldBe true
+        b.hasSubscribers shouldBe true
       }
 
       subscription.unsubscribe()
 
       withClue("source event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream") {
-        a.hasListeners shouldBe false
+        a.hasSubscribers shouldBe false
       }
 
       withClue("mapped event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream") {
-        b.hasListeners shouldBe false
+        b.hasSubscribers shouldBe false
       }
     }
 
@@ -67,7 +67,7 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       a ! "a"
 
       withClue("mapped event stream 'b' should have subscriber after first element emitting from source event stream.") {
-        b.hasListeners shouldBe true
+        b.hasSubscribers shouldBe true
       }
 
       b ! "b"
@@ -79,11 +79,11 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
       a ! "a"
 
       withClue("mapped event stream 'b' should have no subscribers after second element emitting from source event stream.") {
-        b.hasListeners shouldBe false
+        b.hasSubscribers shouldBe false
       }
 
       withClue("mapped event stream 'c' should have subscriber after second element emitting from source event stream.") {
-        c.hasListeners shouldBe true
+        c.hasSubscribers shouldBe true
       }
 
       c ! "c"
@@ -115,6 +115,7 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
     }
 
     scenario("don't emit an event when a future is completed with a failure") {
+      implicit val dq: DispatchQueue = SerialDispatchQueue()
       val promise = Promise[Int]()
       val resPromise = Promise[Int]()
 
@@ -126,11 +127,14 @@ class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with B
     }
 
     scenario("emit an event after delay by wrapping a cancellable future") {
+      implicit val dq: DispatchQueue = SerialDispatchQueue()
       val t = System.currentTimeMillis()
       val ev = for {
         _ <- EventStream.from(CancellableFuture.delay(1 seconds))
         x = System.currentTimeMillis() - t
       } yield x
+
+      awaitAllTasks
 
       result(ev.future) > 1000 shouldBe true
     }

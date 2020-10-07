@@ -28,11 +28,11 @@ class ButtonSignalSpec extends FeatureSpec with Matchers {
     val buttonState = Signal(false)
 
 
-    val button = ButtonSignal(service, buttonState) {
+    val button = ButtonSignal(service, buttonState)( {
       (_, state) => {
         buttonState ! !state
       }
-    }.disableAutowiring()
+    }).disableAutowiring()
 
     button.press()
     result(button.filter(_ == true).head)
@@ -45,11 +45,11 @@ class ButtonSignalSpec extends FeatureSpec with Matchers {
     val service = Signal.const("service")
     val buttonState = Signal(false)
 
-    val button = ButtonSignal(service, buttonState) {
+    val button = new ButtonSignal(service, buttonState)( {
       (_, state) => {
         buttonState ! !state
       }
-    }
+    })
 
     button.press()
     result(button.filter(_ == false).head)

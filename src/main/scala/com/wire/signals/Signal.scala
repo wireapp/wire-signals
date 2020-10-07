@@ -31,7 +31,7 @@ object Signal {
                                     subscriber:       Subscriber[E],
                                     executionContext: Option[ExecutionContext] = None
                                    )(implicit context: WeakReference[EventContext])
-    extends BaseSubscription(context) with SignalListener {
+    extends BaseSubscription(context) with SignalSubscriber {
 
     override def changed(currentContext: Option[ExecutionContext]): Unit = synchronized {
       source.value.foreach { event =>
@@ -47,7 +47,7 @@ object Signal {
 
     override protected[signals] def onSubscribe(): Unit = {
       source.subscribe(this)
-      changed(None) // refresh listener with current value
+      changed(None) // refresh subscriber with current value
     }
 
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
@@ -95,8 +95,8 @@ object Signal {
       res => signal.set(Option(res), Some(executionContext))
     }(executionContext)
   }
-  def from[A](future: Future[A]): Signal[A] = from(future, Threading.executionContext)
-  def from[A](future: CancellableFuture[A]): Signal[A] = from(future.future, Threading.executionContext)
+  def from[A](future: Future[A]): Signal[A] = from(future, Threading.defaultContext)
+  def from[A](future: CancellableFuture[A]): Signal[A] = from(future.future, Threading.defaultContext)
   def from[A](future: CancellableFuture[A], executionContext: ExecutionContext): Signal[A] = from(future.future, executionContext)
 
   def from[A](initial: A, source: EventStream[A]): Signal[A] = new Signal[A](Some(initial)) {
@@ -121,7 +121,7 @@ object Signal {
 }
 
 class Signal[A](@volatile protected[signals] var value: Option[A] = None)
-  extends Observable[SignalListener] with EventSource[A] { self =>
+  extends Subscribable[SignalSubscriber] with EventSource[A] { self =>
 
   private object updateMonitor
 
@@ -133,25 +133,25 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       }
       else false
     }
-    if (changed) notifyListeners(currentContext)
+    if (changed) notifySubscribers(currentContext)
     changed
   }
 
   protected[signals] def set(v: Option[A], currentContext: Option[ExecutionContext] = None): Unit =
     if (value != v) {
       value = v
-      notifyListeners(currentContext)
+      notifySubscribers(currentContext)
     }
 
-  private[signals] def notifyListeners(currentContext: Option[ExecutionContext]): Unit =
-    super.notifyListeners(_.changed(currentContext))
+  protected[signals] def notifySubscribers(currentContext: Option[ExecutionContext]): Unit =
+    super.notifySubscribers(_.changed(currentContext))
 
   final def currentValue: Option[A] = {
     if (!wired) disableAutowiring()
     value
   }
 
-  lazy val onChanged: EventStream[A] = new EventStream[A] with SignalListener { stream =>
+  lazy val onChanged: EventStream[A] = new EventStream[A] with SignalSubscriber { stream =>
     private var prev = self.value
 
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized {
@@ -172,11 +172,11 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
     case Some(v) => Future.successful(v)
     case None =>
       val p = Promise[A]()
-      val listener = new SignalListener {
-        override def changed(ec: Option[ExecutionContext]): Unit = value foreach p.trySuccess
+      val subscriber = new SignalSubscriber {
+        override def changed(ec: Option[ExecutionContext]): Unit = value.foreach(p.trySuccess)
       }
-      subscribe(listener)
-      p.future.onComplete(_ => unsubscribe(listener))(Threading.executionContext)
+      subscribe(subscriber)
+      p.future.onComplete(_ => unsubscribe(subscriber))(Threading.defaultContext)
       value foreach p.trySuccess
       p.future
   }
@@ -261,7 +261,7 @@ trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()
 }
 
-abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalListener {
+abstract class ProxySignal[A](sources: Signal[_]*) extends Signal[A] with SignalSubscriber {
   override def onWire(): Unit = {
     sources foreach (_.subscribe(this))
     value = computeValue(value)
@@ -357,7 +357,7 @@ final private[signals] class PartialUpdateSignal[A, B](source: Signal[A])(select
       }
       else false
     }
-    if (changed) notifyListeners(currentContext)
+    if (changed) notifySubscribers(currentContext)
     changed
   }
 

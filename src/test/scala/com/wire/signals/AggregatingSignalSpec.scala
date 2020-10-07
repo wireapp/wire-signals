@@ -24,6 +24,7 @@ import testutils._
 import scala.concurrent.Promise
 
 class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
+  private implicit val dispatcher: DispatchQueue = SerialDispatchQueue()
 
   feature("Aggregating incremental updates to an initial value") {
     scenario("new aggregator, no subscribers")(withAggregator { env =>

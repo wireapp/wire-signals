@@ -7,9 +7,9 @@ import scala.concurrent.ExecutionContext
   * Using immutable signals in flatMap chains should have better performance compared to regular signals with the same value.
   */
 class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring {
-  override def subscribe(l: SignalListener): Unit = ()
+  override def subscribe(subscriber: SignalSubscriber): Unit = ()
 
-  override def unsubscribe(l: SignalListener): Unit = ()
+  override def unsubscribe(subscriber: SignalSubscriber): Unit = ()
 
   override protected[signals] def update(f: Option[A] => Option[A], ec: Option[ExecutionContext]): Boolean =
     throw new UnsupportedOperationException("Const signal can not be updated")

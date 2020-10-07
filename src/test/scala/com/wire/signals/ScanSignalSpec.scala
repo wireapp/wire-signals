@@ -69,11 +69,11 @@ class ScanSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
       val scanned = s.scan(0)(_ + _)
       val sub = scanned(capture)
       Seq(2, 3) foreach (s ! _)
-      s.hasListeners shouldEqual true
-      scanned.hasListeners shouldEqual true
+      s.hasSubscribers shouldEqual true
+      scanned.hasSubscribers shouldEqual true
       sub.destroy()
-      s.hasListeners shouldEqual false
-      scanned.hasListeners shouldEqual false
+      s.hasSubscribers shouldEqual false
+      scanned.hasSubscribers shouldEqual false
       s ! 4
       received shouldEqual Seq(1, 3, 6)
     }

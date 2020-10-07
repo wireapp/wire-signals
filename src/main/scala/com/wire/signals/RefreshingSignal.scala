@@ -16,7 +16,7 @@ class RefreshingSignal[A](loader: => CancellableFuture[A], refreshEvent: EventSt
     loadFuture = thisReload
     loader.onComplete {
       case Success(v) if loadFuture eq thisReload =>
-        p.success(set(Some(v), Some(Threading.executionContext)))
+        p.success(set(Some(v), Some(Threading.defaultContext)))
       case Failure(ex) if loadFuture eq thisReload =>
         //error(l"Error while loading RefreshingSignal", ex)
         p.failure(ex)

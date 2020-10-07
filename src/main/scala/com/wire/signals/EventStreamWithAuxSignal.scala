@@ -20,20 +20,20 @@ package com.wire.signals
 import scala.concurrent.ExecutionContext
 
 class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) extends EventStream[(A, Option[B])] {
-  protected val listener: EventListener[A] = new EventListener[A] {
+  protected val eventSubscriber: EventSubscriber[A] = new EventSubscriber[A] {
     override protected[signals] def onEvent(event: A, sourceContext: Option[ExecutionContext]): Unit =
       dispatch((event, aux.currentValue), sourceContext)
   }
 
-  protected val auxListener: SignalListener = SignalListener()
+  protected val auxSubscriber: SignalSubscriber = SignalSubscriber()
 
   override protected def onWire(): Unit = {
-    source.subscribe(listener)
-    aux.subscribe(auxListener)
+    source.subscribe(eventSubscriber)
+    aux.subscribe(auxSubscriber)
   }
 
   override protected[signals] def onUnwire(): Unit = {
-    source.unsubscribe(listener)
-    aux.unsubscribe(auxListener)
+    source.unsubscribe(eventSubscriber)
+    aux.unsubscribe(auxSubscriber)
   }
 }

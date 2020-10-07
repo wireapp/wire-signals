@@ -1,6 +1,6 @@
 package com.wire.signals
 
-case class ButtonSignal[A](service: Signal[A], buttonState: Signal[Boolean])(onClick: (A, Boolean) => Unit)
+final class ButtonSignal[A](service: Signal[A], buttonState: Signal[Boolean])(onClick: (A, Boolean) => Unit)
   extends ProxySignal[Boolean](service, buttonState) {
 
   def press(): Unit = if (wired) {
@@ -11,4 +11,9 @@ case class ButtonSignal[A](service: Signal[A], buttonState: Signal[Boolean])(onC
   }
 
   override protected def computeValue(current: Option[Boolean]): Option[Boolean] = buttonState.value
+}
+
+object ButtonSignal {
+  def apply[A](service: Signal[A], buttonState: Signal[Boolean])(onClick: (A, Boolean) => Unit): ButtonSignal[A]
+    = new ButtonSignal(service, buttonState)(onClick)
 }

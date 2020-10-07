@@ -17,42 +17,41 @@
  */
 package com.wire.signals
 
-trait Observable[Listener] {
-
+trait Subscribable[Subscriber] {
   private object lock
 
   private var autowiring = true
   @volatile private[signals] var wired = false
-  @volatile private var listeners = Set.empty[Listener]
+  @volatile private var subscribers = Set.empty[Subscriber]
 
   protected def onWire(): Unit
 
   protected def onUnwire(): Unit
 
-  private[signals] def subscribe(listener: Listener): Unit = lock.synchronized {
-    listeners += listener
+  def subscribe(subscriber: Subscriber): Unit = lock.synchronized {
+    subscribers += subscriber
     if (!wired) {
       wired = true
       onWire()
     }
   }
 
-  private[signals] def unsubscribe(listener: Listener): Unit = lock.synchronized {
-    listeners -= listener
-    if (wired && autowiring && listeners.isEmpty) {
+  def unsubscribe(subscriber: Subscriber): Unit = lock.synchronized {
+    subscribers -= subscriber
+    if (wired && autowiring && subscribers.isEmpty) {
       wired = false
       onUnwire()
     }
   }
 
-  private[signals] def notifyListeners(invoke: Listener => Unit): Unit = lock.synchronized {
-    listeners.foreach(invoke)
+  protected def notifySubscribers(call: Subscriber => Unit): Unit = lock.synchronized {
+    subscribers.foreach(call)
   }
 
-  private[signals] def hasListeners = lock.synchronized { listeners.nonEmpty }
+  def hasSubscribers: Boolean = lock.synchronized { subscribers.nonEmpty }
 
   def unsubscribeAll(): Unit = lock.synchronized {
-    listeners = Set.empty
+    subscribers = Set.empty
     if (wired && autowiring) {
       wired = false
       onUnwire()
