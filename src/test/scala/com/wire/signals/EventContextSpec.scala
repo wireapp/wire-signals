@@ -53,17 +53,17 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       ec.isContextStarted shouldEqual true
       s.hasSubscribers shouldEqual true
 
-      ec.onContextStop()
+      ec.stop()
       s ! 2
       ec.isContextStarted shouldEqual true
       s.hasSubscribers shouldEqual true
 
-      ec.onContextStart()
+      ec.start()
       s ! 3
       ec.isContextStarted shouldEqual true
       s.hasSubscribers shouldEqual true
 
-      ec.onContextDestroy()
+      ec.destroy()
       s ! 4
       ec.isContextStarted shouldEqual true
       s.hasSubscribers shouldEqual true
@@ -81,17 +81,17 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       s ! 3
       s.hasSubscribers shouldEqual true
 
-      ec.onContextStop()
+      ec.stop()
       Seq(4, 5) foreach (s ! _)
       ec.isContextStarted shouldEqual false
       s.hasSubscribers shouldEqual false
 
-      ec.onContextStart()
+      ec.start()
       Seq(6, 7) foreach (s ! _)
       ec.isContextStarted shouldEqual true
       s.hasSubscribers shouldEqual true
 
-      ec.onContextDestroy()
+      ec.destroy()
       Seq(8, 9) foreach (s ! _)
       ec.isContextStarted shouldEqual false
       s.hasSubscribers shouldEqual false
@@ -107,19 +107,19 @@ class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter wit
       s.hasSubscribers shouldEqual true
       Seq(1, 2) foreach (s ! _)
 
-      ec.onContextStart()
+      ec.start()
       s ! 3
       s.hasSubscribers shouldEqual true
 
-      ec.onContextStop()
+      ec.stop()
       Seq(4, 5) foreach (s ! _)
       s.hasSubscribers shouldEqual true
 
-      ec.onContextStart()
+      ec.start()
       Seq(6, 7) foreach (s ! _)
       s.hasSubscribers shouldEqual true
 
-      ec.onContextDestroy()
+      ec.destroy()
       Seq(8, 9) foreach (s ! _)
       s.hasSubscribers shouldEqual false
 

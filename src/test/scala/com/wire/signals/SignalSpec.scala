@@ -37,12 +37,12 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
   override protected def beforeEach(): Unit = {
     super.beforeEach()
     received = Seq[Int]()
-    eventContext.onContextStart()
+    eventContext.start()
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
-    eventContext.onContextStop()
+    eventContext.stop()
   }
 
   feature("Basic Signals") {
