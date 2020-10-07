@@ -10,7 +10,6 @@ import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 trait DispatchQueue extends ExecutionContext {
-
   val name: String = s"queue_${nextInt().toHexString}"
 
   /**
@@ -59,8 +58,8 @@ final class UnlimitedDispatchQueue private[signals] (executor: ExecutionContext,
 }
 
 object UnlimitedDispatchQueue {
-  def apply(): DispatchQueue = new UnlimitedDispatchQueue(Threading.executionContext, None)
-  def apply(name: String): DispatchQueue = new UnlimitedDispatchQueue(Threading.executionContext, Some(name))
+  def apply(): DispatchQueue = new UnlimitedDispatchQueue(Threading.defaultContext, None)
+  def apply(name: String): DispatchQueue = new UnlimitedDispatchQueue(Threading.defaultContext, Some(name))
 }
 
 /**
@@ -129,7 +128,7 @@ final class SerialDispatchQueue private[signals] (executor: ExecutionContext, pr
 }
 
 object SerialDispatchQueue {
-  def apply(): DispatchQueue = new SerialDispatchQueue(Threading.executionContext, None)
-  def apply(name: String): DispatchQueue = new SerialDispatchQueue(Threading.executionContext, Some(name))
+  def apply(): DispatchQueue = new SerialDispatchQueue(Threading.defaultContext, None)
+  def apply(name: String): DispatchQueue = new SerialDispatchQueue(Threading.defaultContext, Some(name))
 }
 

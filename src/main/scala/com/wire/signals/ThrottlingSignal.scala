@@ -7,7 +7,7 @@ import com.wire.signals.CancellableFuture.delayed
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends ProxySignal[A](source) {
+class ThrottlingSignal[A](val source: Signal[A], val delay: FiniteDuration) extends ProxySignal[A](source) {
 
   import scala.concurrent.duration._
 
@@ -16,14 +16,18 @@ class ThrottlingSignal[A](source: Signal[A], delay: FiniteDuration) extends Prox
 
   override protected def computeValue(current: Option[A]): Option[A] = source.value
 
-  override private[signals] def notifyListeners(ec: Option[ExecutionContext]): Unit =
+  override protected[signals] def notifySubscribers(ec: Option[ExecutionContext]): Unit =
     if (waiting.compareAndSet(false, true)) {
-      val context = ec.getOrElse(Threading.executionContext)
+      val context = ec.getOrElse(Threading.defaultContext)
       val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
       delayed(d.millis) {
         lastDispatched = System.currentTimeMillis()
         waiting.set(false)
-        super.notifyListeners(Some(context))
+        super.notifySubscribers(Some(context))
       }(context)
     }
+}
+
+object ThrottlingSignal {
+  def apply[A](source: Signal[A], delay: FiniteDuration): ThrottlingSignal[A] = new ThrottlingSignal(source, delay)
 }
