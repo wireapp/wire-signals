@@ -73,7 +73,6 @@ object EventStream {
 }
 
 class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]] {
-
   private object dispatchMonitor
 
   private def dispatchEvent(event: E, currentExecutionContext: Option[ExecutionContext]): Unit = dispatchMonitor.synchronized {
