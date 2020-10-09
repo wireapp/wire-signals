@@ -234,9 +234,9 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
     * This also implies that a signal should never #dispatch in #onWire because that will happen anyway immediately
     * afterwards in #subscribe.
     */
-  protected def onWire(): Unit = ()
+  protected def onWire(): Unit = {}
 
-  protected def onUnwire(): Unit = ()
+  protected def onUnwire(): Unit = {}
 
   override def on(ec: ExecutionContext)(subscriber: Subscriber[A])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[A](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
