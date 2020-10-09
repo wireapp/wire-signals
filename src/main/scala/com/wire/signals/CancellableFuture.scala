@@ -17,7 +17,7 @@
  */
 package com.wire.signals
 
-import java.util.TimerTask
+import java.util.{Timer, TimerTask}
 
 import com.wire.signals.utils.returning
 
@@ -322,7 +322,7 @@ object CancellableFuture {
     if (duration <= Duration.Zero) successful(())
     else {
       val p = Promise[Unit]()
-      val task = Threading.schedule(() => p.trySuccess(()), duration.toMillis)
+      val task = schedule(() => p.trySuccess(()), duration.toMillis)
       new CancellableFuture(p) {
         override def cancel(): Boolean = {
           task.cancel()
@@ -349,7 +349,7 @@ object CancellableFuture {
         startNewTimeoutLoop()
 
         private def startNewTimeoutLoop(): Unit = {
-          currentTask = Some(Threading.schedule(
+          currentTask = Some(schedule(
             () => startNewTimeoutLoop(),
             duration.toMillis
           ))
@@ -455,4 +455,13 @@ object CancellableFuture {
         } else false
     }
   }
+
+  private lazy val timer: Timer = new Timer()
+
+  private def schedule(f: () => Any, delay: Long): TimerTask =
+    returning(new TimerTask {
+      override def run(): Unit = f()
+    }) {
+      timer.schedule(_, delay)
+    }
 }
