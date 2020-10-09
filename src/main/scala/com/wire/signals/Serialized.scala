@@ -4,7 +4,7 @@ import scala.collection.mutable
 import scala.concurrent.Future
 
 object Serialized {
-  private implicit val dispatcher: DispatchQueue = SerialDispatchQueue("Serialized")
+  private implicit lazy val dispatcher: DispatchQueue = SerialDispatchQueue("Serialized")
 
   private val locks = mutable.HashMap[String, Future[_]]()
 

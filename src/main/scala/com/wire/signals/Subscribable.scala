@@ -18,12 +18,11 @@
 package com.wire.signals
 
 trait Subscribable[Subscriber] {
-
   private object subscribersMonitor
 
-  private var autowiring = true
+  private[this] var autowiring = true
   @volatile private[signals] var wired = false
-  @volatile private var subscribers = Set.empty[Subscriber]
+  @volatile private[this] var subscribers = Set.empty[Subscriber]
 
   protected def onWire(): Unit
 
@@ -47,7 +46,7 @@ trait Subscribable[Subscriber] {
 
   def notifySubscribers(call: Subscriber => Unit): Unit = subscribers.foreach(call)
 
-  def hasSubscribers = subscribers.nonEmpty
+  def hasSubscribers: Boolean = subscribers.nonEmpty
 
   def unsubscribeAll(): Unit = subscribersMonitor.synchronized {
     subscribers = Set.empty

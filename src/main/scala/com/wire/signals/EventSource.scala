@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext
   * @tparam E The type of events emitted by the event source.
   */
 trait EventSource[E] {
-  val executionContext = Option.empty[ExecutionContext]
+  protected[signals] val executionContext = Option.empty[ExecutionContext]
 
   /** Creates a [[Subscription]] to a [[Subscription.Subscriber]] which will consume events in the given `ExecutionContext`.
     * In simpler terms: A subscriber is a function which will receive events from the event source. For every event,
