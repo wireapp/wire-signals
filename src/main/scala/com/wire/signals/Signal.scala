@@ -37,10 +37,8 @@ object Signal {
       source.value.foreach { event =>
         if (subscribed)
           executionContext match {
-            case Some(ec) if !currentContext.orElse(source.executionContext).contains(ec) =>
-              Future(if (subscribed) Try(subscriber(event)))(ec)
-            case _ =>
-              subscriber(event)
+            case Some(ec) if !currentContext.contains(ec) => Future(if (subscribed) Try(subscriber(event)))(ec)
+            case _ => subscriber(event)
           }
       }
     }
@@ -155,7 +153,7 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
     private var prev = self.value
 
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized {
-      self.value foreach { current =>
+      self.value.foreach { current =>
         if (!prev.contains(current)) {
           dispatch(current, ec)
           prev = Some(current)
@@ -200,8 +198,6 @@ class Signal[A](@volatile protected[signals] var value: Option[A] = None)
       pf.andThen(Option(_)).applyOrElse(v, { _: A => Option.empty[B] })
     }
   }
-
-  def foreach(f: A => Unit)(implicit eventContext: EventContext = EventContext.Global): Subscription = apply(f)
 
   def flatMap[B](f: A => Signal[B]): Signal[B] = new FlatMapSignal[A, B](this, f)
 

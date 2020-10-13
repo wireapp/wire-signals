@@ -35,3 +35,4 @@ contextMatrixTest*
 *.svg
 *.bloop*
 *.metals*
+.bsp/*
