@@ -130,12 +130,12 @@ object EventStream {
   * @see [[Subscription.Subscriber]]
   * @see [[ExecutionContext]]
   */
-class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]] {
+class EventStream[E] protected () extends EventSource[E] with Subscribable[EventSubscriber[E]] {
 
   /** Dispatches the event to all subscribers.
     *
     * @param event The event to be dispatched.
-    * @param executionContext An option of the execution context used for dispatching. The default implementation of [[EventStream]]
+    * @param executionContext An option of the execution context used for dispatching. The default implementation
     *                         ensures that if `executionContext` is `None` or the same as the execution context used to register
     *                         the subscriber, the subscriber will be called immediately. Otherwise, a future working in the subscriber's
     *                         execution context will be created.
@@ -143,9 +143,9 @@ class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]
   protected[signals] def dispatch(event: E, executionContext: Option[ExecutionContext]): Unit =
     notifySubscribers(_.onEvent(event, executionContext))
 
-  /** Dispatches the event to all subscribers using the current execution context (i.e. calling the notifiers immediately).
+  /** Publishes the event to all subscribers using the current execution context.
     *
-    * @param event The event to be dispatched.
+    * @param event The event to be published.
     */
   protected def publish(event: E): Unit = dispatch(event, None)
 
@@ -257,7 +257,7 @@ class EventStream[E] extends EventSource[E] with Subscribable[EventSubscriber[E]
     * @param ec An [[EventContext]] which can be used to manage the subscription (optional)
     * @return A new [[Subscription]] to `sourceStream`
     */
-  final def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = foreach(sourceStream ! _)
+  final def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = apply(sourceStream ! _)
 
   /** An alias for `pipeTo`. */
   final def |(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = pipeTo(sourceStream)
@@ -358,5 +358,28 @@ final private[signals] class ScanEventStream[E, V](source: EventStream[E], zero:
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit = {
     value = f(value, event)
     dispatch(value, sourceContext)
+  }
+}
+
+final private[signals] class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
+  extends EventStream[V] with EventSubscriber[E] {
+  @volatile private var mapped: Option[EventStream[V]] = None
+
+  private val subscriber = new EventSubscriber[V] {
+    override protected[signals] def onEvent(event: V, currentContext: Option[ExecutionContext]): Unit =
+      dispatch(event, currentContext)
+  }
+
+  override protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit = {
+    mapped.foreach(_.unsubscribe(subscriber))
+    mapped = Some(returning(f(event))(_.subscribe(subscriber)))
+  }
+
+  override protected def onWire(): Unit = source.subscribe(this)
+
+  override protected def onUnwire(): Unit = {
+    mapped.foreach(_.unsubscribe(subscriber))
+    mapped = None
+    source.unsubscribe(this)
   }
 }
