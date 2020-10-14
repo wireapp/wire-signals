@@ -44,10 +44,10 @@ object EventStream {
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
   }
 
-  /** Creates a new [[SourceStream]] of events of type `E`. A usual entry point for the whole event streams network.
+  /** Creates a new [[SourceStream]] of events of the type `E`. A usual entry point for the event streams network.
     *
     * @tparam E The event type.
-    * @return A new event stream of events of type `E`.
+    * @return A new event stream of events of the type `E`.
     */
   def apply[E]() = new SourceStream[E]
 

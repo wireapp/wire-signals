@@ -31,5 +31,5 @@ class SourceStream[E] extends EventStream[E] {
   def publish(event: E, ec: ExecutionContext): Unit = dispatch(event, Some(ec))
 
   /** An alias for the `publish` method. */
-  def !(event: E): Unit = publish(event)
+  final def !(event: E): Unit = publish(event)
 }

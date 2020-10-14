@@ -7,8 +7,7 @@ import com.wire.signals.CancellableFuture.delayed
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-class ThrottlingSignal[A](val source: Signal[A], val delay: FiniteDuration) extends ProxySignal[A](source) {
-
+class ThrottledSignal[A](val source: Signal[A], val delay: FiniteDuration) extends ProxySignal[A](source) {
   import scala.concurrent.duration._
 
   private val waiting = new AtomicBoolean(false)
@@ -28,6 +27,6 @@ class ThrottlingSignal[A](val source: Signal[A], val delay: FiniteDuration) exte
     }
 }
 
-object ThrottlingSignal {
-  def apply[A](source: Signal[A], delay: FiniteDuration): ThrottlingSignal[A] = new ThrottlingSignal(source, delay)
+object ThrottledSignal {
+  def apply[A](source: Signal[A], delay: FiniteDuration): ThrottledSignal[A] = new ThrottledSignal(source, delay)
 }

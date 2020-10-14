@@ -11,9 +11,7 @@ class ConstSignal[A](v: Option[A]) extends Signal[A](v) with NoAutowiring {
 
   override def unsubscribe(subscriber: SignalSubscriber): Unit = {}
 
-  override protected[signals] def update(f: Option[A] => Option[A], ec: Option[ExecutionContext]): Boolean =
-    throw new UnsupportedOperationException("Const signal can not be updated")
+  override protected[signals] def update(f: Option[A] => Option[A], ec: Option[ExecutionContext]): Boolean = false
 
-  override protected[signals] def set(v: Option[A], ec: Option[ExecutionContext]): Unit =
-    throw new UnsupportedOperationException("Const signal can not be changed")
+  override protected[signals] def set(v: Option[A], ec: Option[ExecutionContext]): Unit = {}
 }

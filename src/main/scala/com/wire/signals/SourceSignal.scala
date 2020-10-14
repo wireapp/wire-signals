@@ -3,7 +3,7 @@ package com.wire.signals
 import scala.concurrent.ExecutionContext
 
 class SourceSignal[A](v: Option[A] = None) extends Signal(v) {
-  def !(value: A): Unit = publish(value)
+  final def !(value: A): Unit = publish(value)
 
   override def publish(value: A, currentContext: ExecutionContext): Unit = super.publish(value, currentContext)
 

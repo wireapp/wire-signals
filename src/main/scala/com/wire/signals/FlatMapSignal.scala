@@ -50,7 +50,3 @@ final private[signals] class FlatMapSignal[A, B](source: Signal[A], f: A => Sign
 
   override def changed(currentContext: Option[ExecutionContext]): Unit = set(mapped.value, currentContext)
 }
-
-object FlatMapSignal {
-
-}
