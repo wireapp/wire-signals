@@ -17,13 +17,12 @@
  */
 package com.wire.signals
 
-import com.wire.signals.testutils.Publisher
 import org.scalatest._
 
 class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with OptionValues {
 
   private lazy val aux = new SourceSignal[Int]
-  private lazy val e = Publisher[String](None)
+  private lazy val e = new SourceStream[String]()
 
   private lazy val r = new EventStreamWithAuxSignal(e, aux)
 

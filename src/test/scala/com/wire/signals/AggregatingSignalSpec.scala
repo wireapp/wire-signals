@@ -83,8 +83,8 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
 
       withDelay {
         sub.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
+        aggregator.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
       }
-      aggregator.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
     })
 
     scenario("reload on re-wire")(withAggregator { env =>
@@ -143,7 +143,7 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
 
   class Fixture {
     var promise: Promise[Seq[Int]] = Promise[Seq[Int]]
-    val publisher: Publisher[String] = Publisher[String](None)
+    val publisher: SourceStream[String] = new SourceStream[String]()
 
     def finishLoading(v: Seq[Int] = Seq(42)): Promise[Seq[Int]] = promise.success(v)
 

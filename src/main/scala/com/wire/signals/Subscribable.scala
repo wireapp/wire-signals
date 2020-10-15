@@ -122,7 +122,7 @@ trait Subscribable[SourceSubscriber] {
     }
   }
 
-  /** Typically, a newly created event sources and signals are lazy in the sense that till there are no subscriptions to them,
+  /** Typically, a newly created event streams and signals are lazy in the sense that till there are no subscriptions to them,
     * they will not execute any intermediate computations (e.g. assembled to it through maps, flatMaps, etc). After all,
     * those computations would be ignored at the end. Only when a subscription is created, the computations are performed
     * for the first time.

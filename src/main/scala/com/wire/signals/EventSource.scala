@@ -11,7 +11,6 @@ import scala.concurrent.ExecutionContext
   * @tparam E The type of events emitted by the event source.
   */
 trait EventSource[E] {
-  protected[signals] val executionContext = Option.empty[ExecutionContext]
 
   /** Creates a [[Subscription]] to a [[Subscription.Subscriber]] which will consume events in the given `ExecutionContext`.
     * In simpler terms: A subscriber is a function which will receive events from the event source. For every event,
@@ -23,8 +22,8 @@ trait EventSource[E] {
     *
     * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
     * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
-    * @param eventContext an [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return a [[Subscription]] representing the created connection between the [[EventSource]] and the [[Subscription.Subscriber]]
+    * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
+    * @return A [[Subscription]] representing the created connection between the event source and the [[Subscription.Subscriber]]
     */
   def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit eventContext: EventContext = EventContext.Global): Subscription
 
@@ -40,6 +39,9 @@ trait EventSource[E] {
     * @return a [[Subscription]] representing the created connection between the [[EventSource]] and the [[Subscription.Subscriber]]
     */
   def apply(subscriber: Subscriber[E])(implicit eventContext: EventContext = EventContext.Global): Subscription
+
+  /** An alias for the `apply` method. */
+  final def foreach(op: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription = apply(op)
 }
 
 /** [[Subscription]]s created for a [[ForcedEventSource]] cannot be unsubscribed.
