@@ -37,7 +37,7 @@ class AggregatingSignal[A, B](source: EventStream[A], loader: => Future[B], upda
   private def startLoading(id: AnyRef): Unit = loader.onComplete {
     case Success(s) if loadId.get eq id =>
       valueMonitor.synchronized {
-        AggregatingSignal.this.set(Some(stash.foldLeft(s)(updater)), Some(context))
+        AggregatingSignal.this.set(Some(stash.foldLeft(s)(updater)), Some(Threading.defaultContext))
         loadId.compareAndSet(id, null)
         stash = Vector.empty
       }
@@ -46,10 +46,7 @@ class AggregatingSignal[A, B](source: EventStream[A], loader: => Future[B], upda
       println("load failed", ex)
     case _ =>
       println("delegate is no longer the current one, discarding loaded value")
-  }(context)
-
-
-  private lazy val context = executionContext.getOrElse(Threading.defaultContext)
+  }(Threading.defaultContext)
 
   override def onWire(): Unit = {
     stash = Vector.empty
