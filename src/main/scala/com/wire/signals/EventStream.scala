@@ -44,10 +44,10 @@ object EventStream {
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
   }
 
-  /** Creates a new [[SourceStream]] of events of type `E`. A usual entry point for the whole event streams network.
+  /** Creates a new [[SourceStream]] of events of the type `E`. A usual entry point for the event streams network.
     *
     * @tparam E The event type.
-    * @return A new event stream of events of type `E`.
+    * @return A new event stream of events of the type `E`.
     */
   def apply[E]() = new SourceStream[E]
 
@@ -230,8 +230,6 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
   /** Creates a new event stream of events of type `V` where each event is a result of applying a function which combines
     * the previous result of type `V` with the original event of type `E` that triggers the emission of the new one.
     *
-    * @todo This is called `scan` because of its similarity to the `scan` method in Scala collections, but maybe `fold` would be a better name...
-    *
     * @param zero The initial value of type `V` used to produce the first new event when the first original event comes in.
     * @param f The function which combines the previous result of type `V` with a new original event of type `E` to produce a new result of type `V`.
     * @tparam V The type of the resulting event.
@@ -254,13 +252,13 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     * @see [[SourceStream]]
     *
     * @param sourceStream The source stream in which events emitted by this stream will be published.
-    * @param ec An [[EventContext]] which can be used to manage the subscription (optional)
-    * @return A new [[Subscription]] to `sourceStream`
+    * @param ec An [[EventContext]] which can be used to manage the subscription (optional).
+    * @return A new [[Subscription]] to this event stream.
     */
   final def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = apply(sourceStream ! _)
 
   /** An alias for `pipeTo`. */
-  final def |(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = pipeTo(sourceStream)
+  @inline final def |(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = pipeTo(sourceStream)
 
   /** Produces a [[CancellableFuture]] which will finish when the next event is emitted in the parent event stream.
     *

@@ -30,7 +30,7 @@ import Threading.defaultContext
 import CancellableFuture.delayed
 import com.wire.signals.testutils.Uncontended.random
 
-class ThrottlingSignalSpec extends FeatureSpec with Matchers with Inspectors with BeforeAndAfter {
+class ThrottledSignalSpec extends FeatureSpec with Matchers with Inspectors with BeforeAndAfter {
 
   feature("Forwarding") {
 
