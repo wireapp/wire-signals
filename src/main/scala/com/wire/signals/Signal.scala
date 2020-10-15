@@ -85,16 +85,20 @@ object Signal {
     * Basically, you may think of empty signals as a way to build alternatives to `Signal.filter` and `Signal.collect` when
     * you need more fine-grained control over conditions of propagating values.
     *
+    * @see [[ConstSignal]]
+    *
     * @tparam V The type of the value (used only in type-checking)
     * @return A new empty signal.
     */
-  def empty[V]: Signal[V] = EMPTY.asInstanceOf[Signal[V]]
+  @inline def empty[V]: Signal[V] = EMPTY.asInstanceOf[Signal[V]]
 
   /** Creates a [[ConstSignal]] initialized to the given value.
     * Use a const signal for providing a source of an immutable value in the chain of signals. Subscribing to a const signal
     * usually makes no sense, but they can be used in flatMaps in cases where the given value of the parent signal should
     * result always in the same value. Using [[ConstSignal]] in such case should have some performance advantage over using
     * a regular signal holding a (in theory mutable) value.
+    *
+    * @see [[ConstSignal]]
     *
     * @param v The immutable value held by the signal.
     * @tparam V The type of the value.
@@ -134,16 +138,15 @@ object Signal {
     new Zip6Signal(s1, s2, s3, s4, s5, s6)
 
   /** A utility method for creating a [[ThrottledSignal]] with the value of the given type and updated no more often than once
-    * every given time interval.
+    * during the given time interval. If changes to the value of the parent signal happen more often, some of them will be ignored.
     *
     * @see [[ThrottledSignal]]
-    *
-    * @param s The parent signal providing the original value.
+    * @param source The parent signal providing the original value.
     * @param delay The time interval used for throttling.
     * @tparam V The type of value in both the parent signal and the new one.
-    * @return A new throttled signal.
+    * @return A new throttled signal of the same value type as the parent.
     */
-  def throttled[V](s: Signal[V], delay: FiniteDuration): Signal[V] = new ThrottledSignal(s, delay)
+  def throttled[V](source: Signal[V], delay: FiniteDuration): Signal[V] = new ThrottledSignal(source, delay)
 
   /** Creates a signal from an initial value, a list of parent signals, and a folding function. On initialization, and then on
     * every change of value of any of the parent signals, the folding function will be called for the whole list and use
@@ -236,12 +239,7 @@ object Signal {
     * @tparam V The type of both the initial value and the events in the parent stream.
     * @return A new signal with the value of the type `V`.
     */
-  def from[V](initial: V, source: EventStream[V]): Signal[V] = new Signal[V](Some(initial)) {
-    private[this] lazy val subscription = source(publish)(EventContext.Global)
-
-    override protected def onWire(): Unit = subscription.enable()
-    override protected def onUnwire(): Unit = subscription.disable()
-  }
+  def from[V](initial: V, source: EventStream[V]): Signal[V] = new EventStreamSignal[V](source, Option(initial))
 
   /** Creates a new signal from an event stream.
     * The signal will start uninitialized and subscribe to the parent event stream. Subsequently, it will update its value
@@ -251,12 +249,7 @@ object Signal {
     * @tparam V The type of the events in the parent stream.
     * @return A new signal with the value of the type `V`.
     */
-  def from[V](source: EventStream[V]): Signal[V] = new Signal[V](None) {
-    private[this] lazy val subscription = source(publish)(EventContext.Global)
-
-    override protected def onWire(): Unit = subscription.enable()
-    override protected def onUnwire(): Unit = subscription.disable()
-  }
+  def from[V](source: EventStream[V]): Signal[V] = new EventStreamSignal[V](source)
 }
 
 /** A signal is an event stream with a cache.
@@ -287,32 +280,93 @@ class Signal[V](@volatile protected[signals] var value: Option[V] = None)
   extends EventSource[V] with Subscribable[SignalSubscriber] { self =>
   private object updateMonitor
 
-  protected[signals] def update(f: Option[V] => Option[V], currentContext: Option[ExecutionContext] = None): Boolean = {
-    val changed = updateMonitor.synchronized {
-      val next = f(value)
-      if (value != next) {
-        value = next; true
-      }
-      else false
+  /** Updates the current value of the signal by applying a given function to it.
+    * The function should return an option of the value type. If the result is `None` the signal will become empty until the next update.
+    * The subscribers will be notified of the update only if the new value is different from the current one. If yes, we will try to
+    * call them on the given execution context, but only if the subscriptions do not specify otherwise.
+    *
+    * @param f The function used to update the value of the signal.
+    * @param currentContext The execution context on which the subscriber functions will be called if subscriptions don't specify otherwise (optional).
+    * @return true if the update actually happened and subscribers will be notified, false if the new value is the same as the old one.
+    */
+  protected[signals] def update(f: Option[V] => Option[V], currentContext: Option[ExecutionContext] = None): Boolean =
+    updateMonitor.synchronized {
+      set(f(value), currentContext)
     }
-    if (changed) notifySubscribers(currentContext)
-    changed
-  }
 
-  protected[signals] def set(v: Option[V], currentContext: Option[ExecutionContext] = None): Unit =
+  /** Sets the value of the signal to the new one.
+    * The new value is an option of the value type. If the result is `None` the signal will become empty until the next update.
+    * The subscribers will be notified of the update only if the new value is different from the current one. If yes, we will try to
+    * call them on the given execution context, but only if the subscriptions do not specify otherwise.
+    *
+    * @todo Check why we synchronize in `update` but not here. It clearly works: tests fail if we synchronize this method. I just want to know why.
+    *
+    * @param v The new value of the signal.
+    * @param currentContext The execution context on which the subscriber functions will be called if subscriptions don't specify otherwise (optional).
+    * @return true if the new value is different from the old one and so a change actually happens and the subscribers will be notified,
+    *         false if the new value is the same as the old one.
+    */
+  protected[signals] def set(v: Option[V], currentContext: Option[ExecutionContext] = None): Boolean =
     if (value != v) {
       value = v
       notifySubscribers(currentContext)
-    }
+      true
+    } else false
 
-  protected[signals] def notifySubscribers(currentContext: Option[ExecutionContext]): Unit =
+  /** Notifies the subscribers that the value of the signal has changed.
+    *
+    * @param currentContext The execution context on which the subscriber functions will be called if subscriptions don't specify otherwise (optional).
+    */
+  protected def notifySubscribers(currentContext: Option[ExecutionContext] = None): Unit =
     super.notifySubscribers(_.changed(currentContext))
 
+  /** The current value of the signal.
+    * If the signal reuires some initial work before accessing its value for the first time, it will be done exactly one time.
+    * Subsequently, this method will simply return the current value.
+    *
+    * Please note that this will return an option of the value type. You may get a `None` if the signal is not initialized yet
+    * or if it was temporarily cleared and awaits another update. Usually, it's safer to use `head` or `future` and work with
+    * a future of the value type instead.
+    *
+    * @return The current value of the signal.
+    */
   final def currentValue: Option[V] = {
     if (!wired) disableAutowiring()
     value
   }
 
+  /** A future with the current value of the signal.
+    * The future will finish immediately with the current value of the signal if the value is already set. If the signal is empty,
+    * the future will finish when the next update sets the value.
+    *
+    * @todo Maybe it should be renamed to `future`?
+    *
+    * @return The current value of the signal or the value it will be set to in the next update.
+    */
+  final def head: Future[V] = currentValue match {
+    case Some(v) => Future.successful(v)
+    case None =>
+      val p = Promise[V]()
+      val subscriber = new SignalSubscriber {
+        override def changed(ec: Option[ExecutionContext]): Unit = value.foreach(p.trySuccess)
+      }
+      subscribe(subscriber)
+      p.future.onComplete(_ => unsubscribe(subscriber))(Threading.defaultContext)
+      value.foreach(p.trySuccess)
+      p.future
+  }
+
+  /** An alias to the `head` method. */
+  @inline final def future: Future[V] = head
+
+  /** An event stream where each event is a new value of the signal.
+    * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream.
+    * So, the events in the stream are guaranteed to differ. It's not possible to get two equal events one after another.
+    *
+    * Please note you will not get the initial value of the signal in this event stream.
+    *
+    * @todo Implement a version of this method which returns a tuple of the old and new value.
+    */
   final lazy val onChanged: EventStream[V] = new EventStream[V] with SignalSubscriber { stream =>
     private var prev = self.value
 
@@ -330,67 +384,216 @@ class Signal[V](@volatile protected[signals] var value: Option[V] = None)
     override protected[signals] def onUnwire(): Unit = self.unsubscribe(this)
   }
 
-  final def head: Future[V] = currentValue match {
-    case Some(v) => Future.successful(v)
-    case None =>
-      val p = Promise[V]()
-      val subscriber = new SignalSubscriber {
-        override def changed(ec: Option[ExecutionContext]): Unit = value.foreach(p.trySuccess)
-      }
-      subscribe(subscriber)
-      p.future.onComplete(_ => unsubscribe(subscriber))(Threading.defaultContext)
-      value.foreach(p.trySuccess)
-      p.future
-  }
+  /** Zips this signal with the given one.
+    *
+    * @param other The other signal with values of the same or a different type.
+    * @tparam Z The type of the values of the other signal.
+    * @return A new signal with values being tuples of the value of this signal and the other one.
+    *         The value of the other signal will be updated every time this or the other signal's value is updated.
+    */
+  final def zip[Z](other: Signal[Z]): Signal[(V, Z)] = new Zip2Signal[V, Z](this, other)
 
-  final def future: Future[V] = head
-
-  final def zip[Z](s: Signal[Z]): Signal[(V, Z)] = new Zip2Signal[V, Z](this, s)
-
+  /** Creates a new `Signal[Z]` by mapping the value of the type `V` of this signal.
+    *
+    * @param f The function mapping the value of the original signal into the value of the new signal.
+    * @tparam Z The value type of the new signal.
+    * @return A new signal
+    */
   final def map[Z](f: V => Z): Signal[Z] = new MapSignal[V, Z](this, f)
 
+  /** Creates a new `Signal[V]` which updates its value only if the new value of the original signal satisfies the filter,
+    * and changes to empty otherwise. Also, if the initial value of the original signal does not satisfy the filter,
+    * the new signal will start empty.
+    *
+    * @param f A filtering function which for any value of the original signal returns true or false.
+    * @return A new signal of the same value type.
+    */
   final def filter(f: V => Boolean): Signal[V] = new FilterSignal(this, f)
 
-  final def withFilter(f: V => Boolean): Signal[V] = filter(f)
+  /** An alias for `filter` used in the for/yield notation.
+    *
+    * This can be useful for more readable chains of asynchronous computations where at some point we want to wait until
+    * some condition is fulfilled:
+    * ```
+    * val resultSignal = for {
+    *  a    <- signalA
+    *  b    <- signalB
+    *  true <- checkCondition(a, b)
+    *  c    <- signalC
+    * } yield c
+    * ```
+    * Here, `resultSignal` will be updated to the value of `signalC` only if the current values of `signalA` and `signalB` fulfill
+    * the condition. If the check fails, `resultSignal` will become empty until `signalA` or `signalB` changes its value and the new
+    * pair fulfills the condition.
+    */
+  @inline final def withFilter(f: V => Boolean): Signal[V] = filter(f)
 
-  final def ifTrue(implicit ev: V =:= Boolean): Signal[Unit] = collect { case true => () }
+  /** Assuming that the value of the signal can be interpreted as a boolean, this method returns a future
+    * of type `Unit` which will finish with success when the value of the original signal is true.
+    *
+    * ```
+    * val signal = Signal[Int](3)
+    * signal.map(_ % 2 == 0).onTrue.foreach { _ => println("This is the first time the value of the signal is even") }
+    * ```
+    *
+    * @return A new future which finishes either immediately or as soon as the value of the original signal is true.
+    */
+  final def onTrue(implicit ev: V =:= Boolean): Future[Unit] = collect { case true => () }.head
 
-  final def ifFalse(implicit ev: V =:= Boolean): Signal[Unit] = collect { case false => () }
+  /** Assuming that the value of the signal can be interpreted as a boolean, this method returns a future
+    * of type `Unit` which will finish with success when the value of the original signal is false.
+    *
+    * ```
+    * val signal = Signal[Int](2)
+    * signal.map(_ % 2 == 0).onFalse.foreach { _ => println("This is the first time the value of the signal is odd") }
+    * ```
+    *
+    * @return A new future which finishes either immediately or as soon as the value of the original signal is false.
+    */
+  final def onFalse(implicit ev: V =:= Boolean): Future[Unit] = collect { case false => () }.head
 
+  /** Creates a new signal of values of the type `Z` by applying a partial function which maps the original value of the type `V`
+    * to a value of the type `Z`. If the partial function doesn't work for the current value, the new signal will become empty
+    * until the next update. Basically, it's filter + map.
+    *
+    * @param pf A partial function which for the original value of the type `V` may produce a value of the type `Z`.
+    * @tparam Z The value type of the new signal.
+    * @return A new signal with values of the type `Z`, holding the value produced from the original signal's value by
+    *         the partial function, or empty if that's not possible.
+    */
   final def collect[Z](pf: PartialFunction[V, Z]): Signal[Z] = new ProxySignal[Z](this) {
     override protected def computeValue(current: Option[Z]): Option[Z] = self.value.flatMap { v =>
       pf.andThen(Option(_)).applyOrElse(v, { _: V => Option.empty[Z] })
     }
   }
 
+  /** Creates a new `Signal[Z]` by mapping each event of the original `Signal[V]` to a new signal and switching to it.
+    * The usual use case is to create a new complex signal not as one big entity with the value being the result of
+    * computations based on a lot of data at once, but to break it into simpler signals connected by flatMaps. At each
+    * step the used signal produces an intermediate value and recomputing that value is not necessary again until
+    * the values used to compute that one are changed too.
+    *
+    * @param f The function mapping each event of type `v` to a signal of the type `Z`.
+    * @tparam Z The value type of the new signal.
+    * @return A new or already existing signal to which we switch as the result of a change in the value of the original signal.
+    */
   final def flatMap[Z](f: V => Signal[Z]): Signal[Z] = new FlatMapSignal[V, Z](this, f)
 
+  /** Flattens a signal whose value type is also a signal.
+    *
+    * @tparam Z The type of the value of the nested signal.
+    * @return A new signal of the value type the same as the value type of the nested signal.
+    */
   final def flatten[Z](implicit evidence: V <:< Signal[Z]): Signal[Z] = flatMap(x => x)
 
+  /** Creates a new signal with the value type `Z` where the change in the value is the result of applying a function
+    * which combines the previous value of type `Z` with the changed value of the type `V` of the parent signal.
+    *
+    * @todo Test if it really works like that, the code is a bit complicated.
+    *
+    * @param zero The initial value of the new signal.
+    * @param f The function which combines the current value of the new signal with the new, changed value of the parent (this) signal
+    *          to produce a new value for the new signal (might be the same as the old one and then subscribers won't be notified).
+    * @tparam Z The value type of the new signal.
+    * @return A new signal with the value of the type `Z`.
+    */
   final def scan[Z](zero: Z)(f: (Z, V) => Z): Signal[Z] = new ScanSignal[V, Z](this, zero, f)
 
-  final def combine[Z, Y](s: Signal[Z])(f: (V, Z) => Y): Signal[Y] = new ProxySignal[Y](this, s) {
-    override protected def computeValue(current: Option[Y]): Option[Y] = for (v <- self.value; z <- s.value) yield f(v, z)
+  /** Combines the current values of this and another signal of the same or different types `V` and `Z` to produce a signal with the value
+    * of yet another type `Y`. Basically, zip + map.
+    *
+    * @param other The other signal with values of the same or a different type.
+    * @param f The function which combines the current values of both parent signals to produce the value of the new signal.
+    * @tparam Z The value type of the other signal.
+    * @tparam Y The value type of the new signal.
+    * @return A new signal with the value of the type `Y`.
+    */
+  final def combine[Z, Y](other: Signal[Z])(f: (V, Z) => Y): Signal[Y] = new ProxySignal[Y](this, other) {
+    override protected def computeValue(current: Option[Y]): Option[Y] = for (v <- self.value; z <- other.value) yield f(v, z)
   }
 
+  /** Creates a throttled version of this signal which updates no more often than once during the given time interval.
+    * If changes to the value of the parent signal happen more often, some of them will be ignored.
+    *
+    * @see [[ThrottledSignal]]
+    *
+    * @param delay The time interval used for throttling.
+    * @return A new throttled signal of the same value type as the parent.
+    */
   final def throttle(delay: FiniteDuration): Signal[V] = new ThrottledSignal(this, delay)
 
+  /** Creates a version of this signal which, if the parent signal becomes empty, temporarily uses the value of the given
+    * `fallback` signal. The moment the parent signal is set to a new value again, the new signal switches back to it.
+    * Only when both signals are empty, the new signal will become empty too.
+    *
+    * @param fallback Another signal of the same value type.
+    * @return A new signal of the same value type.
+    */
   final def orElse(fallback: Signal[V]): Signal[V] = new ProxySignal[V](self, fallback) {
     override protected def computeValue(current: Option[V]): Option[V] = self.value.orElse(fallback.value)
   }
 
-  final def either[Z](right: Signal[Z]): Signal[Either[V, Z]] = map(Left(_): Either[V, Z]).orElse(right.map(Right.apply))
+  /** A generalization of the `orElse` method where the fallback signal can have another value type.
+    * If the value of this signal is `V` and the value of the fallback signal is `Z`, the new signal will return
+    * an `Either[Z, V]`. When the parent signal is set, the value of the new signal will be `Right(v)`. When the parent
+    * signal becomes empty, the value of the new signal will temporarily switch to `Left(z)` where `z` is the current value
+    * of the fallback signal. The moment the parent signal is set to a new value again, the new signal will switch back to
+    * `Right(v)`.
+    * Only when both signals are empty, the new signal will become empty too.
+    *
+    * @param fallback Another signal of the same or different value type.
+    * @tparam Z The value type of the fallback signal.
+    * @return A new signal with the value being either the value of the parent or the value of the fallback signal if
+    *         the parent is empty.
+    */
+  final def either[Z](fallback: Signal[Z]): Signal[Either[Z, V]] = map(Right(_): Either[Z, V]).orElse(fallback.map(Left.apply))
 
-  final def pipeTo(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Unit = apply(sourceSignal ! _)
-  final def |(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Unit = pipeTo(sourceSignal)
+  /** A shorthand for registering a subscriber function in this signal which only purpose is to publish changes to the value
+    * of this signal in another [[SourceSignal]]. The subscriber function will be called in the execution context of the
+    * original publisher.
+    *
+    * @see [[SourceSignal]]
+    *
+    * @param sourceSignal he signal in which changes to the value of this signal will be published.
+    * @param ec An [[EventContext]] which can be used to manage the subscription (optional).
+    * @return A new [[Subscription]] to this signal.
+    */
+  final def pipeTo(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Subscription = apply(sourceSignal ! _)
 
+  /** An alias for `pipeTo`. */
+  @inline final def |(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Subscription = pipeTo(sourceSignal)
+
+  /** Creates a new signal of the same value type which changes its value to the changed value of the parent signal only if
+    * the given `select` function returns different results for the old and the new value. If the results of the `select`
+    * functions are equal, then even if the new value of the original signal is actually different from the old one, the value
+    * of the new signal stays the same.
+    *
+    * Consider the following example:
+    * ```
+    * val parent = Signal[Int](3)
+    * val oddEvenSwitch = parent.onPartialUpdate { _ % 2 == 0 }
+    * oddEvenSwitch.foreach { n => println(s"The value switched between odd and even and is now equal to $n") }
+    * ```
+    * Here, the value of `oddEvenSwitch` will update only if the new value is even if the old one was odd and vice versa.
+    * So, if we publish new odd values to `parent` (1, 5, 9, 7, ...) the value of `oddEvenSwitch` will stay at 3. Only
+    * when we publish an even number to `parent` (say, 2), the value `oddEventSwitch` will change. And from now on it will
+    * stay like that until we publish an odd number to the parent.
+    *
+    * @param select A function mapping from the current value of the original signal to another value which will be used
+    *               for checking if the new signal should update.
+    * @tparam Z The type of the value returned by the `select` function.
+    * @return A new signal of the same value type as this one, which updates only if the `select` function gives different
+    *         results for the old and the new value of the parent signal.
+    */
   final def onPartialUpdate[Z](select: V => Z): Signal[V] = new PartialUpdateSignal[V, Z](this)(select)
 
-  /** If this signal is computed from sources that change their value via a side effect (such as signals) and is not
+  /** @todo This is an old comment to this method. Consider writing the same in a simpler way.
+    *
+    * If this signal is computed from sources that change their value via a side effect (such as signals) and is not
     * informed of those changes while unwired (e.g. because this signal removes itself from the sources' children
     * lists in #onUnwire), it is mandatory to update/recompute this signal's value from the sources in #onWire, since
     * a dispatch always happens after #onWire. This is true even if the source values themselves did not change, for the
-    * recomputation in itself may rely on side effects (e.g. ZMessaging => SomeValueFromTheDatabase).
+    * recomputation in itself may rely on side effects.
     *
     * This also implies that a signal should never #dispatch in #onWire because that will happen anyway immediately
     * afterwards in #subscribe.
@@ -399,17 +602,53 @@ class Signal[V](@volatile protected[signals] var value: Option[V] = None)
 
   protected def onUnwire(): Unit = {}
 
+  /** Registers a subscriber in a specified execution context and returns the subscription. An optional event context can also
+    * be provided by the user for managing the subscription instead of doing it manually. When the value of the signal changes,
+    * the subscriber function will be called in the given execution context instead of the one of the publisher.
+    *
+    * @see [[EventSource]]
+    *
+    * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
+    * @param subscriber [[Subscription.Subscriber]] - a function which is called initially, when registered in the signal,
+    *                   and then every time the value of the signal changes.
+    * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
+    * @return A [[Subscription]] representing the created connection between the signal and the [[Subscription.Subscriber]]
+    */
   override def on(ec: ExecutionContext)(subscriber: Subscriber[V])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[V](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
 
+  /** Registers a subscriber which will always be called in the same execution context in which the value of the signal was changed.
+    * An optional event context can be provided by the user for managing the subscription instead of doing it manually.
+    *
+    * @see [[EventSource]]
+    * @param subscriber [[Subscription.Subscriber]] - a function which is called initially, when registered in the signal,
+    *                   and then every time the value of the signal changes.
+    * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
+    * @return A [[Subscription]] representing the created connection between the signal and the [[Subscription.Subscriber]]
+    */
   override def apply(subscriber: Subscriber[V])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[V](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
+  /** Sets the value of the signal to the given value. Notifies the subscribers if the value actually changes.
+    *
+    * @param value The new value of the signal.
+    */
   protected def publish(value: V): Unit = set(Some(value))
 
+  /** Sets the value of the signal to the given value. Notifies the subscribers if the value actually changes.
+    * if the subscription specify the execution context, that execution context will be used to execute the subscriber
+    * function, and only if not, the context given in the `publish` method will be used.
+    *
+    * @param value The new value of the signal.
+    * @param currentContext The execution context that will be used to call the subscriber function if the subscription
+    *                       does not say otherwise.
+    */
   protected def publish(value: V, currentContext: ExecutionContext): Unit = set(Some(value), Some(currentContext))
 }
 
+/** By default, a new signal is initialized lazily, i.e. only when the first subscriber function is registered in it.
+  * You can decorate it with `NoAutowiring` to enforce initialization.
+  */
 trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()
 }
@@ -428,6 +667,7 @@ abstract class ProxySignal[V](sources: Signal[_]*) extends Signal[V] with Signal
 }
 
 final private[signals] class ScanSignal[V, Z](source: Signal[V], zero: Z, f: (Z, V) => Z) extends ProxySignal[Z](source) {
+  // @todo shouldn't this be in an overridden `onWire`?
   value = Some(zero)
 
   override protected def computeValue(current: Option[Z]): Option[Z] =
@@ -514,4 +754,11 @@ final private[signals] class PartialUpdateSignal[V, Z](source: Signal[V])(select
   }
 
   override protected def computeValue(current: Option[V]): Option[V] = source.value
+}
+
+final private[signals] class EventStreamSignal[V](source: EventStream[V], v: Option[V] = None) extends Signal[V](v) {
+  private[this] lazy val subscription = source(publish)(EventContext.Global)
+
+  override protected def onWire(): Unit = subscription.enable()
+  override protected def onUnwire(): Unit = subscription.disable()
 }
