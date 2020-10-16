@@ -25,24 +25,49 @@ import org.threeten.bp.Instant.now
 
 import scala.concurrent.ExecutionContext
 
+object ClockSignal {
+  /** Creates a new clock signal which will update its value to the current instant once per given time interval.
+    *
+    * @param interval The duration of the time interval between two "ticks" of the clock signal.
+    * @param clock The clock configured to produce the new values of the signal.
+    * @param ec The execution context in which the clock signal works. If the context is busy, the value of the signal
+    *           may be updated with a delay.
+    * @return A new clock signal with the value type [[Instant]]
+    */
+  def apply(interval: FiniteDuration, clock: Clock = Clock.systemUTC())(implicit ec: ExecutionContext = Threading.defaultContext): ClockSignal =
+    new ClockSignal(interval, clock)
+}
+
+/** A signal which once every given time `interval` updates its value to the current instant. Can be used to periodically
+  * perform some actions. The initial value of the clock signal will be computed the moment the first subscriber function
+  * is registered to it, or immediately if `disableAutowiring` is used.
+  *
+  * @see [[Clock]]
+  * @see [[FiniteDuration]]
+  * @see [[Instant]]
+  *
+  * @todo Move to the extensions project.
+  *
+  * @param interval The duration of the time interval between two "ticks" of the clock signal.
+  * @param clock The clock configured to produce the new values of the signal.
+  * @param ec The execution context in which the clock signal works. If the context is busy, the value of the signal
+  *           may be updated with a delay.
+  */
 final class ClockSignal(val interval: FiniteDuration, val clock: Clock)
+                       (implicit ec: ExecutionContext)
   extends SourceSignal[Instant](Some(now(clock))) {
+  private var delay = CancellableFuture.successful(())
 
-  private var delay = CancellableFuture.successful({})
-
-  def refresh()(implicit ec: ExecutionContext): Unit = if (wired) {
+  /** Called automatically once per `interval` but can also be called manually to force the update of the clock signal's value. */
+  def refresh(): Unit = if (wired) {
     publish(now(clock))
     delay.cancel()
     delay = CancellableFuture.delayed(interval)(refresh())
   }
 
-  //To force a refresh in tests when clock is advanced
+  /** Used to force a refresh in tests when the clock is advanced */
   def checkAndRefresh()(implicit ec: ExecutionContext): Unit =
     if (interval <= (now(clock).toEpochMilli - value.getOrElse(Instant.EPOCH).toEpochMilli).millis) refresh()
 
-  override def onWire(): Unit = refresh()(Threading.defaultContext)
-}
-
-object ClockSignal {
-  def apply(interval: FiniteDuration, clock: Clock = Clock.systemUTC()): ClockSignal = new ClockSignal(interval, clock)
+  override def onWire(): Unit = refresh()
 }

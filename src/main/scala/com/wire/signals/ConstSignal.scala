@@ -1,6 +1,20 @@
 package com.wire.signals
 
+import com.wire.signals.Signal.SignalSubscriber
+
 import scala.concurrent.ExecutionContext
+
+object ConstSignal {
+  /** Creates a const signal holding the given value.
+    *
+    * @see also `Signal.const`
+    *
+    * @param v The value of the signal.
+    * @tparam V The type of the value.
+    * @return A new const signal with the given value.
+    */
+  def apply[V](v: V): ConstSignal[V] = new ConstSignal(Option(v))
+}
 
 /** A signal holding an immutable value.
   * Using const signals in flatMap chains should have better performance compared to source signals with the same value.
@@ -17,14 +31,3 @@ final class ConstSignal[V] private[signals] (v: Option[V]) extends Signal[V](v) 
   override protected[signals] def set(v: Option[V], ec: Option[ExecutionContext]): Boolean = false
 }
 
-object ConstSignal {
-  /** Creates a const signal holding the given value.
-    *
-    * @see also `Signal.const`
-    *
-    * @param v The value of the signal.
-    * @tparam V The type of the value.
-    * @return A new const signal with the given value.
-    */
-  def apply[V](v: V): ConstSignal[V] = new ConstSignal(Option(v))
-}

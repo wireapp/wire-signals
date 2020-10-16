@@ -17,7 +17,7 @@
  */
 package com.wire.signals
 
-import com.wire.signals.Signal.SignalSubscription
+import com.wire.signals.Signal.{SignalSubscriber, SignalSubscription}
 import com.wire.signals.Subscription.Subscriber
 import utils._
 
@@ -51,6 +51,21 @@ object Signal {
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
   }
 
+  private[signals] trait SignalSubscriber {
+    // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
+    def changed(currentContext: Option[ExecutionContext]): Unit
+  }
+
+  private[signals] object SignalSubscriber {
+    def apply(): SignalSubscriber = new DoNothingSignalSubscriber()
+
+    final class DoNothingSignalSubscriber extends SignalSubscriber {
+      override def changed(currentContext: Option[ExecutionContext]): Unit = ()
+    }
+  }
+
+  final private val Empty = new ConstSignal[Any](None)
+
   /** Creates a new [[SourceSignal]] of values of the type `V`. A usual entry point for the signals network.
     * Starts uninitialized (its value is set to `None`).
     *
@@ -68,7 +83,6 @@ object Signal {
     */
   def apply[V](v: V) = new SourceSignal[V](Some(v)) with NoAutowiring
 
-  private lazy val EMPTY = new ConstSignal[Any](None)
 
   /** Creates an empty, uninitialized [[ConstSignal]].
     * Empty signals can be used in flatMap chains to signalize (ha!) that for the given value of the parent signal all further
@@ -90,7 +104,7 @@ object Signal {
     * @tparam V The type of the value (used only in type-checking)
     * @return A new empty signal.
     */
-  @inline def empty[V]: Signal[V] = EMPTY.asInstanceOf[Signal[V]]
+  @inline def empty[V]: Signal[V] = Empty.asInstanceOf[Signal[V]]
 
   /** Creates a [[ConstSignal]] initialized to the given value.
     * Use a const signal for providing a source of an immutable value in the chain of signals. Subscribing to a const signal
@@ -276,7 +290,7 @@ object Signal {
   * @param value The option of the last value published in the signal or `None` if the signal was not initialized yet.
   * @tparam V The type of the value held in the signal.
   */
-class Signal[V](@volatile protected[signals] var value: Option[V] = None)
+class Signal[V] protected (@volatile protected[signals] var value: Option[V] = None)
   extends EventSource[V] with Subscribable[SignalSubscriber] { self =>
   private object updateMonitor
 
@@ -648,6 +662,8 @@ class Signal[V](@volatile protected[signals] var value: Option[V] = None)
 
 /** By default, a new signal is initialized lazily, i.e. only when the first subscriber function is registered in it.
   * You can decorate it with `NoAutowiring` to enforce initialization.
+  *
+  * @see [[Subscribable.disableAutowiring()]]
   */
 trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()

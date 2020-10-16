@@ -17,6 +17,32 @@
  */
 package com.wire.signals
 
+object EventContext {
+  /** Creates a new default implementation of an [[EventContext]]
+    *
+    * @return A default implementation of the [[EventContext]]
+    */
+  def apply(): EventContext = new BaseEventContext
+
+  object Implicits {
+    implicit val global: EventContext = EventContext.Global
+  }
+
+  /** A dummy global [[EventContext]] used when no other event context is specified.
+    * It does not maintain its subscriptions, it's always started, it can't be stopped or destroyed,
+    * and it lives for the lifetime of the program.
+    */
+  final object Global extends EventContext {
+    override def register(subscription: Subscription): Boolean = true
+    override def unregister(subscription: Subscription): Unit = {}
+    override def start(): Unit = {}
+    override def stop(): Unit = {}
+    override def destroy(): Unit = {}
+    override def isContextStarted: Boolean = true
+    override def isContextDestroyed: Boolean = false
+  }
+}
+
 /** When you subscribe to an [[EventSource]] in return you receive a [[Subscription]]. You can use that subscription
   * to unsubscribe from the event source or to temporarily pause receiving events. But managing a big number of
   * subscriptions to different event sources can be tricky. [[EventContext]] comes to the rescue.
@@ -118,30 +144,4 @@ class BaseEventContext extends EventContext {
   override def isContextStarted: Boolean = lock.synchronized(started && !destroyed)
 
   override def isContextDestroyed: Boolean = lock.synchronized(destroyed)
-}
-
-object EventContext {
-  /** Creates a new default implementation of an [[EventContext]]
-    *
-    * @return A default implementation of the [[EventContext]]
-    */
-  def apply(): EventContext = new BaseEventContext
-
-  object Implicits {
-    implicit val global: EventContext = EventContext.Global
-  }
-
-  /** A dummy global [[EventContext]] used when no other event context is specified.
-    * It does not maintain its subscriptions, it's always started, it can't be stopped or destroyed,
-    * and it lives for the lifetime of the program.
-    */
-  final object Global extends EventContext {
-    override def register(subscription: Subscription): Boolean = true
-    override def unregister(subscription: Subscription): Unit = {}
-    override def start(): Unit = {}
-    override def stop(): Unit = {}
-    override def destroy(): Unit = {}
-    override def isContextStarted: Boolean = true
-    override def isContextDestroyed: Boolean = false
-  }
 }
