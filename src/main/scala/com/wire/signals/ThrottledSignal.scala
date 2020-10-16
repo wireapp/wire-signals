@@ -7,6 +7,19 @@ import com.wire.signals.CancellableFuture.delayed
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
+object ThrottledSignal {
+  /** Creates a new throttled signal which publishes changes to the original signal no more often than once during the time interval.
+    *
+    * @see [[Signal.throttled]]
+    *
+    * @param source The original signal providing the value and changes to it.
+    * @param delay The time interval used for publishing. No more than one change of the value per `delay` will be published.
+    * @tparam V The value type of the signal.
+    * @return The new throttled signal of the same type as the original one.
+    */
+  def apply[V](source: Signal[V], delay: FiniteDuration): ThrottledSignal[V] = new ThrottledSignal(source, delay)
+}
+
 /** A signal which publishes changes of its parent signal but no more often than once during a given time interval.
   * The initial value of the parent signal will be published immediately. The first change to it will happen at the earliest
   * after the given delay. If the parent signal changes its value more often, the intermediate values will be ignored.
@@ -40,17 +53,4 @@ class ThrottledSignal[V](val source: Signal[V], val delay: FiniteDuration) exten
         super.notifySubscribers(Some(context))
       }(context)
     }
-}
-
-object ThrottledSignal {
-  /** Creates a new throttled signal which publishes changes to the original signal no more often than once during the time interval.
-    *
-    * @see [[Signal.throttled]]
-    *
-    * @param source The original signal providing the value and changes to it.
-    * @param delay The time interval used for publishing. No more than one change of the value per `delay` will be published.
-    * @tparam V The value type of the signal.
-    * @return The new throttled signal of the same type as the original one.
-    */
-  def apply[V](source: Signal[V], delay: FiniteDuration): ThrottledSignal[V] = new ThrottledSignal(source, delay)
 }

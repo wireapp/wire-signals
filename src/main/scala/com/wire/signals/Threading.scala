@@ -1,6 +1,6 @@
 package com.wire.signals
 
-import com.wire.signals.DispatchQueue.UNLIMITED
+import com.wire.signals.DispatchQueue.Unlimited
 import scala.concurrent.ExecutionContext
 
 /** Use `Threading` to set up the default execution context which will be later used as the parent for other
@@ -20,7 +20,7 @@ object Threading {
   final val Cpus: Int = math.max(2, Runtime.getRuntime.availableProcessors)
 
   private var instance = Option.empty[DispatchQueue]
-  private lazy val defaultQueue = DispatchQueue(UNLIMITED, ExecutionContext.global)
+  private lazy val defaultQueue = DispatchQueue(Unlimited, ExecutionContext.global)
 
   /** The default dispatch queue for Wire Signals is lazily initialized, meaning that at the start of the app,
     * before it is used for the first time, you can provide a dispatch queue of your own to act as the default one.

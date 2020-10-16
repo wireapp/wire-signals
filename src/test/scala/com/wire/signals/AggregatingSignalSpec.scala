@@ -149,7 +149,7 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
 
     private def loader = promise.future
 
-    val aggregator = new AggregatingSignal[String, Seq[Int]](publisher, loader, (b, a) => b :+ a.length)
+    val aggregator = new AggregatingSignal[String, Seq[Int]](loader, publisher, (b, a) => b :+ a.length)
 
     case class Sub() {
       @volatile var value: Option[Seq[Int]] = None

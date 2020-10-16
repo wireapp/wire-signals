@@ -17,7 +17,8 @@
  */
 package com.wire.signals
 
-import com.wire.signals.EventStream.EventStreamSubscription
+import com.wire.signals.EventStream.{EventStreamSubscription, EventSubscriber}
+import com.wire.signals.Signal.SignalSubscriber
 import com.wire.signals.Subscription.Subscriber
 import utils.returning
 
@@ -42,6 +43,11 @@ object EventStream {
     override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
 
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
+  }
+
+  private[signals] trait EventSubscriber[E] {
+    // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
+    protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit
   }
 
   /** Creates a new [[SourceStream]] of events of the type `E`. A usual entry point for the event streams network.

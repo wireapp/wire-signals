@@ -3,7 +3,7 @@ package com.wire.signals
 import java.util.concurrent.{ConcurrentLinkedQueue, ExecutorService}
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.wire.signals.DispatchQueue.{SERIAL, UNLIMITED, nextInt}
+import com.wire.signals.DispatchQueue.{Serial, nextInt}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -43,41 +43,40 @@ object DispatchQueue {
     *
     * @see [[UnlimitedDispatchQueue]]
     */
-  final val UNLIMITED = 0
+  final val Unlimited: Int = 0
   /** Used in place on the `concurrentTasks` parameter in one of the `DispatchQueue.apply` method,
     * `SERIAL` indicates that the queue should be a serial one. But take a look on `SerialDispatchQueue.apply`
     * before you decide to use it.
     *
     * @see [[SerialDispatchQueue]]
     */
-  final val SERIAL = 1
+  final val Serial: Int = 1
 
-  private lazy val atom = new AtomicInteger()
+  private final val AtomInt = new AtomicInteger()
 
-  private[signals] def nextInt(): Int = atom.incrementAndGet()
+  private[signals] def nextInt(): Int = AtomInt.incrementAndGet()
 
   private def createDispatchQueue(concurrentTasks: Int, executor: ExecutionContext, name: Option[String]): DispatchQueue =
     concurrentTasks match {
-      case UNLIMITED => new UnlimitedDispatchQueue(executor, name)
-      case SERIAL    => new SerialDispatchQueue(executor, name)
+      case Unlimited => new UnlimitedDispatchQueue(executor, name)
+      case Serial    => new SerialDispatchQueue(executor, name)
       case _         => new LimitedDispatchQueue(concurrentTasks, executor, name)
     }
 
   /** Creates a dispatch queue with a generated name.
     *
     * @param concurrentTasks - the maximum number of concurrent tasks the queue is allowed to run.
-    *                        Can be `UNLIMITED`, `SERIAL`, or an arbitrary positive number bigger than 1.
+    *                          Can be [[Unlimited]], [[Serial]], or an arbitrary positive number bigger than 1.
     * @param executor - the underlying execution context
     * @return a new dispatch queue, either unlimited, serial, or limited.
     */
   def apply(concurrentTasks: Int, executor: ExecutionContext): DispatchQueue =
     createDispatchQueue(concurrentTasks, executor, None)
 
-
   /** Creates a dispatch queue with a given name.
     *
     * @param concurrentTasks - the maximum number of concurrent tasks the queue is allowed to run.
-    *                        Can be `UNLIMITED`, `SERIAL`, or an arbitrary positive number bigger than 1.
+    *                          Can be [[Unlimited]], [[Serial]], or an arbitrary positive number bigger than 1.
     * @param executor - the underlying execution context
     * @param name - the name of the queue; might be later used e.g. in logging
     * @return a new dispatch queue, either unlimited, serial, or limited.
@@ -99,7 +98,7 @@ object DispatchQueue {
     * @see [[ExecutorService]]
     *
     * @param concurrentTasks - the maximum number of concurrent tasks the queue is allowed to run.
-    *                        Can be `UNLIMITED`, `SERIAL`, or an arbitrary positive number bigger than 1.
+    *                          Can be [[Unlimited]], [[Serial]], or an arbitrary positive number bigger than 1.
     * @param service - the underlying executor service. The dispatch queue will create a new execution context, using the service.
     * @return a new dispatch queue, either unlimited, serial, or limited.
     */
@@ -110,7 +109,7 @@ object DispatchQueue {
     * @see [[ExecutorService]]
     *
     * @param concurrentTasks - the maximum number of concurrent tasks the queue is allowed to run.
-    *                        Can be `UNLIMITED`, `SERIAL`, or an arbitrary positive number bigger than 1.
+    *                          Can be [[Unlimited]], [[Serial]], or an arbitrary positive number bigger than 1.
     * @param service - the underlying executor service. The dispatch queue will create a new execution context, using the service.
     * @param name - the name of the queue; might be later used e.g. in logging.
     * @return a new dispatch queue, either unlimited, serial, or limited.
@@ -223,7 +222,7 @@ object LimitedDispatchQueue {
   * Use when you want to enforce the tasks to be executed in the order they were scheduled.
   */
 final class SerialDispatchQueue private[signals] (executor: ExecutionContext, private val _name: Option[String])
-  extends LimitedDispatchQueue(SERIAL, executor, _name) {
+  extends LimitedDispatchQueue(Serial, executor, _name) {
   override val name: String = s"serial_${nextInt()}"
 }
 

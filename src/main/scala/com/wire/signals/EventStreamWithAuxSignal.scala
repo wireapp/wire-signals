@@ -17,6 +17,9 @@
  */
 package com.wire.signals
 
+import com.wire.signals.EventStream.EventSubscriber
+import com.wire.signals.Signal.SignalSubscriber
+
 import scala.concurrent.ExecutionContext
 
 object EventStreamWithAuxSignal {
@@ -55,7 +58,7 @@ class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) ext
     }
   }
 
-  protected[this] val auxSubscriber: SignalSubscriber = SignalSubscriber()
+  protected[this] lazy val auxSubscriber: SignalSubscriber = SignalSubscriber()
 
   override protected def onWire(): Unit = {
     source.subscribe(subscriber)
