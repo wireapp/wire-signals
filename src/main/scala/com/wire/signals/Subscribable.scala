@@ -31,7 +31,7 @@ package com.wire.signals
   * "source subscribers" of this type when a new event comes (`Subscribable` doesn't care what method will be used
   * to do it). In this case, the "source subscriber" is `EventSubscriber`.
   *
-  * Please not that [[SourceSubscriber]] is a trait or a class type. This is different from another generic type called
+  * Please not that `SourceSubscriber` is a trait or a class type. This is different from another generic type called
   * [[Subscription.Subscriber]] which is a function type used to create a [[Subscription]]. We will get to it in a second.
   *
   * So far, there are no event subscribers yet, which means that if we publish anything to this stream, nothing will happen.

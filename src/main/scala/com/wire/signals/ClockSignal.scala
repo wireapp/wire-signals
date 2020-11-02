@@ -32,7 +32,7 @@ object ClockSignal {
     * @param clock The clock configured to produce the new values of the signal.
     * @param ec The execution context in which the clock signal works. If the context is busy, the value of the signal
     *           may be updated with a delay.
-    * @return A new clock signal with the value type [[Instant]]
+    * @return A new clock signal with the value type [[org.threeten.bp.Instant]]
     */
   def apply(interval: FiniteDuration, clock: Clock = Clock.systemUTC())(implicit ec: ExecutionContext = Threading.defaultContext): ClockSignal =
     new ClockSignal(interval, clock)
