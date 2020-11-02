@@ -75,7 +75,8 @@ object AggregatingSignal {
   * @tparam E The type of the update events.
   * @tparam V The type of the value held in the signal and the result of the `loader` execution.
   */
-class AggregatingSignal[E, V](loader: => Future[V], sourceStream: EventStream[E], updater: (V, E) => V)(implicit ec: ExecutionContext)
+class AggregatingSignal[E, V](loader: => Future[V], sourceStream: EventStream[E], updater: (V, E) => V)
+                             (implicit ec: ExecutionContext = Threading.defaultContext)
   extends Signal[V] with EventSubscriber[E] { self =>
   private object valueMonitor
 

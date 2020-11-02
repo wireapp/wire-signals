@@ -51,7 +51,8 @@ object RefreshingSignal {
   * @param ec The execution context in which the `loader` is executed.
   * @tparam V The value type of the signal and the result of the `loader` cancellable future.
   */
-class RefreshingSignal[V](loader: => CancellableFuture[V], refreshStream: EventStream[_])(implicit ec: ExecutionContext)
+class RefreshingSignal[V](loader: => CancellableFuture[V], refreshStream: EventStream[_])
+                         (implicit ec: ExecutionContext = Threading.defaultContext)
   extends Signal[V] {
   @volatile private var loadFuture = CancellableFuture.cancelled[Unit]()
   @volatile private var subscription = Option.empty[Subscription]

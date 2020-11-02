@@ -93,8 +93,8 @@ trait Subscription {
   *
   * For examples:
  *
-  * @see [[Signal.SignalSubscription]]
-  * @see [[EventStream.EventStreamSubscription]]
+  * @see [[Signal]]
+  * @see [[EventStream]]
   * @param context A weak reference to the event context within which the subscription lives.
   */
 abstract class BaseSubscription(context: WeakReference[EventContext]) extends Subscription {

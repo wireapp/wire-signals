@@ -30,7 +30,7 @@ object Threading {
     * Note that it is technically possible to replace the default dispatch queue while the app is already running.
     * @todo Maybe we should disallow it.
     *
-    * @see [[ExecutionContext.global]]
+    * @see [[scala.concurrent.ExecutionContext]]
     *
     * @param queue - a custom dispatch queue that will serve as the default execution context in cases where no other execution
     *              context is provided and as the parent for all new dispatch queues when their parents are not provided.

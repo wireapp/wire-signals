@@ -8,9 +8,9 @@ import com.wire.signals.DispatchQueue.{Serial, nextInt}
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
-/** A thin wrapper over Scala's [[ExecutionContext]] allowing us to differentiate between the default execution context
-  * which tries to run asynchronously as many tasks as possible, and limited execution contexts, allowed to run only
-  * up to a given number of tasks at once.
+/** A thin wrapper over Scala's [[scala.concurrent.ExecutionContext]] allowing us to differentiate between the default
+  * execution context which tries to run asynchronously as many tasks as possible, and limited execution contexts,
+  * allowed to run only up to a given number of tasks at once.
   *
   * @see [[ExecutionContext]]
   */
@@ -95,7 +95,7 @@ object DispatchQueue {
     )
 
   /** Creates a dispatch queue with a generated name, given an executor service instead of an execution context.
-    * @see [[ExecutorService]]
+    * @see [[java.util.concurrent.ExecutorService]]
     *
     * @param concurrentTasks - the maximum number of concurrent tasks the queue is allowed to run.
     *                          Can be [[Unlimited]], [[Serial]], or an arbitrary positive number bigger than 1.
@@ -106,7 +106,7 @@ object DispatchQueue {
     createDispatchQueue(concurrentTasks, service, None)
 
   /** Creates a dispatch queue with a given name, given an executor service instead of an execution context.
-    * @see [[ExecutorService]]
+    * @see [[java.util.concurrent.ExecutorService]]
     *
     * @param concurrentTasks - the maximum number of concurrent tasks the queue is allowed to run.
     *                          Can be [[Unlimited]], [[Serial]], or an arbitrary positive number bigger than 1.
@@ -123,7 +123,7 @@ object DispatchQueue {
 final class UnlimitedDispatchQueue private[signals] (executor: ExecutionContext, private val _name: Option[String] = None)
   extends DispatchQueue {
   override val name: String = _name.getOrElse(s"unlimited_${nextInt()}")
-  override def execute(runnable: Runnable): Unit = executor.execute(runnable)
+  @inline override def execute(runnable: Runnable): Unit = executor.execute(runnable)
 }
 
 object UnlimitedDispatchQueue {
@@ -163,7 +163,7 @@ class LimitedDispatchQueue private[signals] (concurrencyLimit: Int, parent: Exec
   /** Schedules a new runnable task to be executed. The task will be added to the queue and then a dispatch executor will run
     * to check if it can be taken from it and executed or if it has to wait until one of the running tasks finishes.
     *
-    * @see [[Runnable]]
+    * @see [[java.lang.Runnable]]
     *
     * @param runnable - a task to be executed
     */

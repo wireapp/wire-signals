@@ -93,8 +93,8 @@ object EventStream {
 
   /** Creates an event stream from a future. The event stream will emit one event if the future finishes with success, zero otherwise.
     *
-    * @param future The [[Future]] treated as the source of the only event that can be emitted by the event source.
-    * @param executionContext The [[ExecutionContext]] in which the event will be dispatched.
+    * @param future The [[scala.concurrent.Future]] treated as the source of the only event that can be emitted by the event source.
+    * @param executionContext The [[scala.concurrent.ExecutionContext]] in which the event will be dispatched.
     * @tparam E The type of the event.
     * @return A new event stream.
     */
@@ -108,7 +108,7 @@ object EventStream {
     *
     * @see [[Threading]]
     *
-    * @param future The [[Future]] treated as the source of the only event that can be emitted by the event source.
+    * @param future The [[scala.concurrent.Future]] treated as the source of the only event that can be emitted by the event source.
     * @tparam E The type of the event.
     * @return A new event stream.
     */
@@ -134,7 +134,7 @@ object EventStream {
   * specified. In that case the function won't be called immediately, but in a future executed in that execution context.
   *
   * @see [[Subscription.Subscriber]]
-  * @see [[ExecutionContext]]
+  * @see [[scala.concurrent.ExecutionContext]]
   */
 class EventStream[E] protected () extends EventSource[E] with Subscribable[EventSubscriber[E]] {
 
