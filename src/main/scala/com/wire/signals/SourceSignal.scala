@@ -17,7 +17,7 @@ class SourceSignal[V](v: Option[V] = None) extends Signal[V](v) {
     * by methods like `map`, `flatMap`, `filter`, etc. - will not be used to directly change their values. The source signal
     * exposes this method for public use.
     *
-    * @see [[Signal.publish]]
+    * @see [[Signal]]
     *
     * @param value The new value of the signal.
     * @param ec The execution context used for dispatching. The default implementation ensures that if `ec` is the same as
@@ -32,7 +32,7 @@ class SourceSignal[V](v: Option[V] = None) extends Signal[V](v) {
     * by methods like `map`, `flatMap`, `filter`, etc. - will not be used to directly change their values. The source signal
     * exposes this method for public use.
     *
-    * @see [[Signal.publish]]
+    * @see [[Signal]]
     *
     * @param value The new value of the signal.
     */

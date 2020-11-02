@@ -44,7 +44,7 @@ object ClockSignal {
   *
   * @see [[Clock]]
   * @see [[FiniteDuration]]
-  * @see [[Instant]]
+  * @see [[org.threeten.bp.Instant]]
   *
   * @todo Move to the extensions project.
   *

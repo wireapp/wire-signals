@@ -11,7 +11,7 @@ import scala.concurrent.Future
   * if yes, processing of the second will start immediately, if not, the processing (in the form of a future or a [[CancellableFuture]])
   * will be attached to the end of the ongoing processing and triggered only after it's done.
   *
-  * @todo `Serialized` is currently used in only one place in wire-signals, [[FutureEventStream]], which in turn is used only for
+  * @todo `Serialized` is currently used in only one place in wire-signals, `FutureEventStream`, which in turn is used only for
   *       [[EventStream.mapAsync]], so we may think or removing this class from the library (move to extensions, maybe?).
   */
 object Serialized {

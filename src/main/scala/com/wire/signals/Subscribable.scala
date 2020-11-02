@@ -29,7 +29,7 @@ package com.wire.signals
   * `EventSource[Int]` and `Subscribable[EventSubscriber[Int]]`. The `Subscribable` trait can have any type as its
   * parameter, the only restriction being that the class which implements `Subscribable` should know how to notify
   * "source subscribers" of this type when a new event comes (`Subscribable` doesn't care what method will be used
-  * to do it). In this case, the "source subscriber" is [[EventSubscriber]].
+  * to do it). In this case, the "source subscriber" is `EventSubscriber`.
   *
   * Please not that [[SourceSubscriber]] is a trait or a class type. This is different from another generic type called
   * [[Subscription.Subscriber]] which is a function type used to create a [[Subscription]]. We will get to it in a second.

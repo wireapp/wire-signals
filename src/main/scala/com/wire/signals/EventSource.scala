@@ -34,14 +34,22 @@ trait EventSource[E] {
     *
     * The [[Subscription]] will be automatically enabled ([[Subscription.enable]]).
     *
+    * @todo This behaviour - consuming events in the same execution context they are produced in - is a special case.
+    *       It doesn't look good that this method is called `apply` as it suggests this is the common case.
+    *       How about renaming it to `onCurrent`?
+    *
     * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
     * @param eventContext an [[EventContext]] which will register the [[Subscription]] for further management (optional)
     * @return a [[Subscription]] representing the created connection between the [[EventSource]] and the [[Subscription.Subscriber]]
     */
   def apply(subscriber: Subscriber[E])(implicit eventContext: EventContext = EventContext.Global): Subscription
 
-  /** An alias for the `apply` method. */
-  final def foreach(op: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription = apply(op)
+  /** An alias for the `on` method with the default [[scala.concurrent.ExecutionContext]]. */
+  final def foreach(op: Subscriber[E])
+                  (implicit executionContext: ExecutionContext = Threading.defaultContext,
+                            eventContext:     EventContext     = EventContext.Global
+                  ): Subscription =
+    on(executionContext)(op)(eventContext)
 }
 
 /** [[Subscription]]s created for a [[ForcedEventSource]] cannot be unsubscribed.

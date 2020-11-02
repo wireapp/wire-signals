@@ -166,7 +166,7 @@ object Signal {
     * every change of value of any of the parent signals, the folding function will be called for the whole list and use
     * the current values to produce a result, analogous to the `foldLeft` method in Scala collections.
     *
-    * @see [[scala.collection.GenTraversableOnce.foldLeft]]
+    * @see [[scala.collection.GenTraversableOnce]]
     *
     * @param sources A variable arguments list of parent signals, all with values of the same type `V`.
     * @param zero The initial value of the type `Z`.
@@ -663,7 +663,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
 /** By default, a new signal is initialized lazily, i.e. only when the first subscriber function is registered in it.
   * You can decorate it with `NoAutowiring` to enforce initialization.
   *
-  * @see [[Subscribable.disableAutowiring()]]
+  * @see [[Subscribable]]
   */
 trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()
