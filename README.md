@@ -13,8 +13,8 @@ val strSignal = Signal[String]() // initially empty SourceSignal[String]
 
 and subscribe it in another place:
 ```
-intSignal.on(executionContext) { number => println("number: $number") }
-strSignal.on(executionContext) { str => println("str: $str") }
+intSignal.foreach { number => println("number: $number") }
+strSignal.foreach { str => println("str: $str") }
 ```
 
 Now every time you publish something to the signals, the functions you provided above will be executed, just as in case of a regular event stream...
@@ -24,7 +24,7 @@ number: 2
 ```
 ... but if you happen to subscribe to a signal after an event was published, the subscriber will still have access to that event. On the moment of subscription the provided function will be executed with the last event in the signal if there is one. So at this point in the example subscribing to `intSignal` will result in the number being displayed:
 ```
-> intSignal.on(executionContext) { number => println("number: $number") }
+> intSignal.foreach { number => println("number: $number") }
 number: 2
 ```
 but subscribing to `strSignal` will not display anything, because `strSignal` is still empty. Or, if you simply don't need that functionality, you can use a standard `EventStream` instead.
@@ -39,7 +39,3 @@ val fooSignal = for {
 
 If you want to know more about how we use it, here's a video: [Scala on Wire](https://www.youtube.com/watch?v=dnsyd-h5piI)
 
-#### TODO:
-1. Use code from this project instead of original signals in an experimental Wire app build.
-2. Make it into a proper library.
-3. Write documentation and a wiki page.
