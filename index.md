@@ -2,7 +2,6 @@
 #### or Yet Another Reactive Library for Scala
 
 [Go straight to Scaladocs](https://wireapp.github.io/wire-signals/api/index.html)
-[//]: #([editor on GitHub](https://github.com/wireapp/wire-signals/edit/gh-pages/index.md))
 
 About two thirds of Wire Android code is written is Scala making it unique among Android apps - most of them being implemented in Java and/or Kotlin. Wire is a messenger and as such it must be very responsive: it has to quickly react to any events coming from the backend, as well as from the user, and from the Android OS itself. For the last three years the Android team developed its own implementation of event streams and "signals" - special event streams with caches holding the last propagated value. They proved to be a very flexible and concise way of handling events all over the Scala code in Wire.
 
@@ -41,3 +40,6 @@ val fooSignal = for {
 ```
 
 If you want to know more about how we use it, here's a video: [Scala on Wire](https://www.youtube.com/watch?v=dnsyd-h5piI)
+
+---
+[editor on GitHub](https://github.com/wireapp/wire-signals/edit/gh-pages/index.md)
