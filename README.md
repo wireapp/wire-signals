@@ -5,6 +5,12 @@ About two thirds of Wire Android code is written is Scala making it unique among
 
 This project is an attempt to migrate all that functionality into a separate library. There is still a lot of work to be done before we can call it Wire Signals version 1.0, but the code is already mature and used extensively in our application, from [fetching and decoding data from another device](https://github.com/wireapp/wire-android-sync-engine/blob/develop/zmessaging/src/main/scala/com/waz/service/push/PushService.scala) to [updating the list of messages displayed in a conversation](https://github.com/wireapp/wire-android/blob/develop/app/src/main/scala/com/waz/zclient/messages/MessagesController.scala).
 
+#### How to use
+To include `wire-signals` in your project, add this to your library dependencies in sbt:
+```
+libraryDependencies += "com.wire" %% "wire-signals" % "0.3.0"
+```
+
 In short, you can create a `SourceSignal` somewhere in the code:
 ```
 val intSignal = Signal(1) // SourceSignal[Int] with the initial value 1
