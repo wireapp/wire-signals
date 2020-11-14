@@ -10,6 +10,8 @@ To include `wire-signals` in your project, add this to your library dependencies
 ```
 libraryDependencies += "com.wire" %% "wire-signals" % "0.3.0"
 ```
+Currently `wire-signals` work with Scala 2.11 (because Android) and 2.12. Compatibility with 2.13 still requires some additional work.
+
 
 In short, you can create a `SourceSignal` somewhere in the code:
 ```
