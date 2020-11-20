@@ -166,8 +166,6 @@ object Signal {
     * every change of value of any of the parent signals, the folding function will be called for the whole list and use
     * the current values to produce a result, analogous to the `foldLeft` method in Scala collections.
     *
-    * @see [[scala.collection.GenTraversableOnce]]
-    *
     * @param sources A variable arguments list of parent signals, all with values of the same type `V`.
     * @param zero The initial value of the type `Z`.
     * @param f A folding function which takes the value of the type `Z`, another value of the type `V`, and produces a new value

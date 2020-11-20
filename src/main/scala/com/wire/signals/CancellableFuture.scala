@@ -21,7 +21,7 @@ import java.util.{Timer, TimerTask}
 
 import com.wire.signals.utils.returning
 
-import scala.collection.generic.CanBuild
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent._
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.ref.WeakReference
@@ -74,7 +74,7 @@ object CancellableFuture {
     */
   def lift[T](future: Future[T], onCancel: => Unit = ()): CancellableFuture[T] = {
     val p = Promise[T]()
-    p.tryCompleteWith(future)
+    p.completeWith(future)
     new CancellableFuture(p) {
       override def cancel(): Boolean =
         if (super.cancel()) {
@@ -156,37 +156,42 @@ object CancellableFuture {
     */
   def cancelled[T](): CancellableFuture[T] = failed(CancelException)
 
-  /** Creates a new `CancellableFuture[TraversableOnce[T]]` from a TraversableOnce of `CancellableFuture[T]`.
-    * The original futures are executed asynchronously, but checking their results will be done in sequence.
-    * I.e., if the sequence is (A, B) where A takes a long time to complete, and B completes faster,
-    * the new cancellable future will anyway check the result of B only after A is completed.
-    * In practice, it means that if any of the original cancellable futures fails or is cancelled, the resulting
-    * one will first wait for all those before it and fail by itself only after reaching the failed one.
-    *
-    * @todo Cancelling the resulting future will NOT cancel the original ones. (FIX IT)
+  /** Creates a new `CancellableFuture[Iterable[T]]` from a Iterable of `Iterable[T]`.
+    * The original futures are executed asynchronously. If any of the original cancellable futures fails or is cancelled,
+    * the resulting one will fail immediately, but the original ones will not.
     */
-  def sequence[T](in: TraversableOnce[CancellableFuture[T]])
-                 (implicit executor: ExecutionContext): CancellableFuture[TraversableOnce[T]] =
-    sequencePriv[T, TraversableOnce[T]](in)
+  def sequence[T](futures: Iterable[CancellableFuture[T]])
+                 (implicit executor: ExecutionContext): CancellableFuture[Iterable[T]] = {
+    val results = ArrayBuffer[T]()
+    results.sizeHint(futures.size)
+    val promise = Promise[Iterable[T]]()
 
-  private final def sequencePriv[T, U](in: TraversableOnce[CancellableFuture[T]])
-                                      (implicit executor: ExecutionContext, cbf: CanBuild[T, U]): CancellableFuture[U] =
-    in.foldLeft(successful(cbf())) {
-      (fr, fa) => for (r <- fr; a <- fa) yield r += a
-    } map (_.result())
+    futures.foreach { f =>
+      f.onComplete {
+        case Success(t) => synchronized {
+          results.append(t)
+          if (results.size == futures.size) promise.trySuccess(results.toVector)
+        }
+        case Failure(ex) =>
+          promise.tryFailure(ex)
+      }
+    }
 
-  /** Transforms a `TraversableOnce[T]` into a `CancellableFuture[TraversableOnce[U]]` using
+    new CancellableFuture(promise)
+  }
+
+  /** Transforms an `Iterable[T]` into a `CancellableFuture[Iterable[U]]` using
     * the provided function `T => CancellableFuture[U]`. Each cancellable future will be executed
     * asynchronously. If any of the original cancellable futures fails or is cancelled, the resulting
-    * one will first wait for all those before it and fail by itself only after reaching the failed one.
+    * one will will fail immediately, but the other original ones will not.
     *
     * @todo Cancelling the resulting future will NOT cancel the original ones. (FIX IT)
     */
-  def traverse[T, U](in: TraversableOnce[T])(f: T => CancellableFuture[U])
-                    (implicit executor: ExecutionContext): CancellableFuture[TraversableOnce[U]] =
+  def traverse[T, U](in: Iterable[T])(f: T => CancellableFuture[U])
+                    (implicit executor: ExecutionContext): CancellableFuture[Iterable[U]] =
     sequence(in.map(f))
 
-  /** Transforms a `TraversableOnce[T]` into a `CancellableFuture[TraversableOnce[U]]` using
+  /** Transforms an `Iterable[T]` into a `CancellableFuture[Iterable[U]]` using
     * the provided function `T => CancellableFuture[U]`. Each cancellable future will be executed
     * synchronously. If any of the original cancellable futures fails or is cancelled, the resulting one
     * also fails and no consecutive original futures will be executed.
@@ -194,9 +199,9 @@ object CancellableFuture {
     * @todo Cancelling the resulting future prevents all the consecutive original futures from being executed
     *       but the ongoing one is not cancelled. (FIX IT)
     */
-  def traverseSequential[T, U](in: Traversable[T])(f: T => CancellableFuture[U])
-                              (implicit executor: ExecutionContext): CancellableFuture[Traversable[U]] = {
-    def processNext(remaining: Traversable[T], acc: List[U] = Nil): CancellableFuture[Traversable[U]] =
+  def traverseSequential[T, U](in: Iterable[T])(f: T => CancellableFuture[U])
+                              (implicit executor: ExecutionContext): CancellableFuture[Iterable[U]] = {
+    def processNext(remaining: Iterable[T], acc: List[U] = Nil): CancellableFuture[Iterable[U]] =
       if (remaining.isEmpty) CancellableFuture.successful(acc.reverse)
       else f(remaining.head).flatMap(res => processNext(remaining.tail, res :: acc))
 
@@ -211,7 +216,7 @@ object CancellableFuture {
                (implicit executor: ExecutionContext): CancellableFuture[(T, U)] = {
     val p = Promise[(T, U)]()
 
-    p.tryCompleteWith((for (r1 <- f1; r2 <- f2) yield (r1, r2)).future)
+    p.completeWith((for (r1 <- f1; r2 <- f2) yield (r1, r2)).future)
 
     new CancellableFuture(p) {
       override def cancel(): Boolean =
@@ -367,7 +372,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     * Works also if the current future is cancelled.
     */
   def recover[U >: T](pf: PartialFunction[Throwable, U])(implicit executor: ExecutionContext): CancellableFuture[U] =
-    recoverWith(pf.andThen(CancellableFuture.successful))
+    recoverWith(pf.andThen(res => CancellableFuture.successful(res)))
 
   /** Creates a new cancellable future that will handle any matching throwable that the current one
     * might contain by assigning it a value of another future. Works also if the current future is cancelled.

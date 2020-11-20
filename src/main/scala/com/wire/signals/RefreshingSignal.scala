@@ -59,7 +59,7 @@ class RefreshingSignal[V](loader: => CancellableFuture[V], refreshStream: EventS
 
   private def reload(): Unit = subscription.foreach { _ =>
     loadFuture.cancel()
-    val p = Promise[Unit]
+    val p = Promise[Unit]()
     val thisReload = CancellableFuture.lift(p.future)
     loadFuture = thisReload
     loader.onComplete {

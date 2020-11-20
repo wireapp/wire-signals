@@ -96,7 +96,7 @@ class AggregatingSignal[E, V](loader: => Future[V], sourceStream: EventStream[E]
       loadId.compareAndSet(id, 0)
       stash = Vector.empty
     }
-    case Failure(_) if loadId.intValue() == id => valueMonitor.synchronized(stash = Vector.empty) // load failed
+    case Failure(_) if loadId.intValue() == id => valueMonitor.synchronized { self.stash = Vector.empty } // load failed
     case _ => // delegate is no longer the current one, discarding loaded value
   }(ec)
 
