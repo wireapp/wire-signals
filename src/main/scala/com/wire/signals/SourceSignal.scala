@@ -39,7 +39,16 @@ class SourceSignal[V](v: Option[V] = None) extends Signal[V](v) {
   override def publish(value: V): Unit = super.publish(value)
 
   /** An alias for the `publish` method. */
-  @inline final def !(value: V): Unit = publish(value)
+  @inline def !(value: V): Unit = publish(value)
+
+  /** A version of the `publish` method which takes the implicit execution context for dispatching.
+    *
+    * The difference between `!!` and `!` (and also between the two `publish` methods) is that even if the source's
+    * execution context is the same as the subscriber's execution context, if we send an event using `!`, it will be
+    * wrapped in a future and executed asychronously. If we use `!!` then for subscribers working in the same
+    * execution context the call will be synchronous. This may be desirable in some cases, but please use with caution.
+    */
+  @inline def !!(value: V)(implicit ec: ExecutionContext): Unit = publish(value, ec)
 
   /** Changes the value of the signal by applying the given function to the current value.
     * If the signal is empty, it will stay empty.

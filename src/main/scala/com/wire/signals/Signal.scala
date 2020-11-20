@@ -72,7 +72,7 @@ object Signal {
     * @tparam V The type of the values which can be published to the signal.
     * @return A new signal of values of the type `V`.
     */
-  def apply[V]() = new SourceSignal[V] with NoAutowiring
+  def apply[V](): SourceSignal[V] = new SourceSignal[V] with NoAutowiring
 
   /** Creates a new [[SourceSignal]] of values of the type `V`. A usual entry point for the signals network.
     * Starts initialized to the given value.
@@ -81,7 +81,7 @@ object Signal {
     * @tparam V The type of the values which can be published to the signal.
     * @return A new signal of values of the type `V`.
     */
-  def apply[V](v: V) = new SourceSignal[V](Some(v)) with NoAutowiring
+  def apply[V](v: V): SourceSignal[V] = new SourceSignal[V](Some(v)) with NoAutowiring
 
 
   /** Creates an empty, uninitialized [[ConstSignal]].

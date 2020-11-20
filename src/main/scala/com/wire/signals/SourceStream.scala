@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
   *
   * @tparam E the type of the event
   */
-class SourceStream[E] extends EventStream[E] {
+final class SourceStream[E] extends EventStream[E] {
   /** Publishes the event to all subscribers.
     *
     * @see [[EventStream.publish]]
@@ -23,6 +23,9 @@ class SourceStream[E] extends EventStream[E] {
     */
   override def publish(event: E): Unit = dispatch(event, None)
 
+  /** An alias for the `publish` method with no explicit execution context. */
+  @inline def !(event: E): Unit = publish(event)
+
   /** Publishes the event to all subscriber, using the given execution context.
     *
     * @see [[EventStream.publish]]
@@ -34,6 +37,12 @@ class SourceStream[E] extends EventStream[E] {
     */
   def publish(event: E, ec: ExecutionContext): Unit = dispatch(event, Some(ec))
 
-  /** An alias for the `publish` method. */
-  @inline final def !(event: E): Unit = publish(event)
+  /** A version of the `publish` method which takes the implicit execution context for dispatching.
+    *
+    * The difference between `!!` and `!` (and also between the two `publish` methods) is that even if the source's
+    * execution context is the same as the subscriber's execution context, if we send an event using `!`, it will be
+    * wrapped in a future and executed asychronously. If we use `!!` then for subscribers working in the same
+    * execution context the call will be synchronous. This may be desirable in some cases, but please use with caution.
+    */
+  @inline def !!(event: E)(implicit ec: ExecutionContext): Unit = publish(event, ec)
 }
