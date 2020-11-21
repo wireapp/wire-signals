@@ -1,8 +1,9 @@
 // based on http://caryrobbins.com/dev/sbt-publishing/
 
+lazy val scala213 = "2.13.4"
 lazy val scala212 = "2.12.12"
 lazy val scala211 = "2.11.12"
-lazy val supportedScalaVersions = List(scala212, scala211)
+lazy val supportedScalaVersions = List(scala213, scala212, scala211)
 
 ThisBuild / organization := "com.wire"
 ThisBuild / scalaVersion := scala212
@@ -45,6 +46,8 @@ publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 
+Test / scalaVersion := scala212
+
 lazy val root = (project in file("."))
   .settings(
     name := "wire-signals",
@@ -53,9 +56,7 @@ lazy val root = (project in file("."))
       "org.threeten"                  %  "threetenbp"            % "1.4.4"            % Provided,
 
       //Test dependencies
-      "org.scalatest"                 %% "scalatest"             % "3.0.7"            % Test,
-      "org.scalamock"                 %% "scalamock"             % "4.2.0"            % Test,
-      "junit"                         %  "junit"                 % "4.8.2"            % Test
+      "org.scalatest"                 %% "scalatest"             % "3.0.9"            % Test
     )
   )
 

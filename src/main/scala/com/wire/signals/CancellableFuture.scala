@@ -164,13 +164,15 @@ object CancellableFuture {
                  (implicit executor: ExecutionContext): CancellableFuture[Iterable[T]] = {
     val results = ArrayBuffer[T]()
     results.sizeHint(futures.size)
+    var resultsReady = 0
     val promise = Promise[Iterable[T]]()
 
-    futures.foreach { f =>
+    futures.zipWithIndex.foreach { case (f, i) =>
       f.onComplete {
         case Success(t) => synchronized {
-          results.append(t)
-          if (results.size == futures.size) promise.trySuccess(results.toVector)
+          results.update(i, t)
+          resultsReady += 1
+          if (resultsReady == futures.size) promise.trySuccess(results.toVector)
         }
         case Failure(ex) =>
           promise.tryFailure(ex)
