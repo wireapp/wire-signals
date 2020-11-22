@@ -83,8 +83,7 @@ object Signal {
     */
   def apply[V](v: V): SourceSignal[V] = new SourceSignal[V](Some(v)) with NoAutowiring
 
-
-  /** Creates an empty, uninitialized [[ConstSignal]].
+  /** Returns an empty, uninitialized, immutable signal of the given type.
     * Empty signals can be used in flatMap chains to signalize (ha!) that for the given value of the parent signal all further
     * computations should be withheld until the value changes to something more useful.
     * ```
@@ -371,21 +370,19 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
   /** An alias to the `head` method. */
   @inline final def future: Future[V] = head
 
-  /** An event stream where each event is a new value of the signal.
-    * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream.
-    * So, the events in the stream are guaranteed to differ. It's not possible to get two equal events one after another.
-    *
-    * Please note you will not get the initial value of the signal in this event stream.
-    *
-    * @todo Implement a version of this method which returns a tuple of the old and new value.
+  /** An event stream where each event is a tuple of the old and the new value of the signal.
+    * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream,
+    * together with the old value which you can use to check what exactly changed. The old value is wrapped in an `Option`: if the signal 
+    * was previously empty, the old value will be `None` otherwise it will be `Some[V]`.
+    * The values are guaranteed to differ, i.e. if you get a tuple `(Some(oldValue), newValue)` then `oldValue != newValue`.
     */
-  final lazy val onChanged: EventStream[V] = new EventStream[V] with SignalSubscriber { stream =>
+  final lazy val onUpdated: EventStream[(Option[V], V)] = new EventStream[(Option[V], V)] with SignalSubscriber { stream =>
     private var prev = self.value
 
     override def changed(ec: Option[ExecutionContext]): Unit = stream.synchronized {
       self.value.foreach { current =>
         if (!prev.contains(current)) {
-          dispatch(current, ec)
+          dispatch((prev, current), ec)
           prev = Some(current)
         }
       }
@@ -395,6 +392,12 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
 
     override protected[signals] def onUnwire(): Unit = self.unsubscribe(this)
   }
+
+  /** An event stream where each event is a new value of the signal.
+    * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream.
+    * The events in the stream are guaranteed to differ. It's not possible to get two equal events one after another.
+    */
+  @inline final lazy val onChanged: EventStream[V] = onUpdated.map(_._2)
 
   /** Zips this signal with the given one.
     *
