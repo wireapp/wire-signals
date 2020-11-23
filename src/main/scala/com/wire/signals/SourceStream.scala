@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
   *
   * @tparam E the type of the event
   */
-final class SourceStream[E] extends EventStream[E] {
+class SourceStream[E] extends EventStream[E] {
   /** Publishes the event to all subscribers.
     *
     * @see [[EventStream.publish]]
