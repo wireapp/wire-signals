@@ -3,6 +3,7 @@
 logs
 project/project
 project/target
+project/metals.sbt
 target
 tmp
 .history
