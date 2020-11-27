@@ -45,5 +45,10 @@ val fooSignal = for {
 } yield str
 ```
 
-If you want to know more about how we use it, here's a video: [Scala on Wire](https://www.youtube.com/watch?v=dnsyd-h5piI)
+If you want to know more about how we use it:
+* here's an [Overview](https://github.com/wireapp/wire-signals/wiki/Overview)
+* [Scala Docs](https://wire.engineering/wire-signals/api/com/wire/signals/index.html)
+* and a slightly outdated video about how we use it at Wire Android: [Scala on Wire](https://www.youtube.com/watch?v=dnsyd-h5piI)
+
+(more info coming soon)
 
