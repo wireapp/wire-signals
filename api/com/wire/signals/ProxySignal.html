@@ -970,8 +970,11 @@ the subscriber function will be called in the given execution context instead of
       
       <p class="shortcomment cmt">An event stream where each event is a new value of the signal.</p><div class="fullcomment"><div class="comment cmt"><p>An event stream where each event is a new value of the signal.
 Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream.
-So, the events in the stream are guaranteed to differ. It's not possible to get two equal events one after another.</p><p>Please note you will not get the initial value of the signal in this event stream.
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Signal.html" class="extype" name="com.wire.signals.Signal">Signal</a></dd><dt>To do</dt><dd><span class="cmt"><p>Implement a version of this method which returns a tuple of the old and new value.</p></span></dd></dl></div>
+The events in the stream are guaranteed to differ. It's not possible to get two equal events one after another.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Signal.html" class="extype" name="com.wire.signals.Signal">Signal</a></dd><dt>Annotations</dt><dd>
+                <span class="name">@inline</span><span class="args">()</span>
+              
+        </dd></dl></div>
     </li><li name="com.wire.signals.Signal#onFalse" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="onFalse(implicitev:V=:=Boolean):scala.concurrent.Future[Unit]"></a><a id="onFalse(=:=[V,Boolean]):Future[Unit]"></a>
       <span class="permalink">
@@ -1065,6 +1068,27 @@ signal.map(_ % 2 == 0).onTrue.foreach { _ =&gt; println(&quot;This is the first 
       
       <p class="shortcomment cmt">This method will be called on removing the last subscription if <code>disableAutoWiring</code> was not called.</p><div class="fullcomment"><div class="comment cmt"><p>This method will be called on removing the last subscription if <code>disableAutoWiring</code> was not called.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="com.wire.signals.ProxySignal">ProxySignal</a> → <a href="Signal.html" class="extype" name="com.wire.signals.Signal">Signal</a> → <a href="Subscribable.html" class="extype" name="com.wire.signals.Subscribable">Subscribable</a></dd></dl></div>
+    </li><li name="com.wire.signals.Signal#onUpdated" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="onUpdated:com.wire.signals.EventStream[(Option[V],V)]"></a><a id="onUpdated:EventStream[(Option[V],V)]"></a>
+      <span class="permalink">
+      <a href="../../../com/wire/signals/ProxySignal.html#onUpdated:com.wire.signals.EventStream[(Option[V],V)]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">lazy val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">onUpdated</span><span class="result">: <a href="EventStream.html" class="extype" name="com.wire.signals.EventStream">EventStream</a>[(<span class="extype" name="scala.Option">Option</span>[<span class="extype" name="com.wire.signals.ProxySignal.V">V</span>], <span class="extype" name="com.wire.signals.ProxySignal.V">V</span>)]</span>
+      </span>
+      
+      <p class="shortcomment cmt">An event stream where each event is a tuple of the old and the new value of the signal.</p><div class="fullcomment"><div class="comment cmt"><p>An event stream where each event is a tuple of the old and the new value of the signal.
+Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream,
+together with the old value which you can use to check what exactly changed. The old value is wrapped in an <code>Option</code>: if the signal
+was previously empty, the old value will be <code>None</code> otherwise it will be <code>Some[V]</code>.
+The values are guaranteed to differ, i.e. if you get a tuple <code>(Some(oldValue), newValue)</code> then <code>oldValue != newValue</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Signal.html" class="extype" name="com.wire.signals.Signal">Signal</a></dd></dl></div>
     </li><li name="com.wire.signals.ProxySignal#onWire" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="onWire():Unit"></a>
       <span class="permalink">

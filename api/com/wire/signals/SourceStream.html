@@ -344,14 +344,37 @@ to it which will receive the resulting events.
       </a>
     </span>
       <span class="modifier_kind">
-        <span class="modifier">final </span>
+        <span class="modifier"></span>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
         <span title="gt4s: $bang" class="name">!</span><span class="params">(<span name="event">event: <span class="extype" name="com.wire.signals.SourceStream.E">E</span></span>)</span><span class="result">: <span class="extype" name="scala.Unit">Unit</span></span>
       </span>
       
-      <p class="shortcomment cmt">An alias for the <code>publish</code> method.</p><div class="fullcomment"><div class="comment cmt"><p>An alias for the <code>publish</code> method.</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+      <p class="shortcomment cmt">An alias for the <code>publish</code> method with no explicit execution context.</p><div class="fullcomment"><div class="comment cmt"><p>An alias for the <code>publish</code> method with no explicit execution context.</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@inline</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li name="com.wire.signals.SourceStream#!!" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="!!(event:E)(implicitec:scala.concurrent.ExecutionContext):Unit"></a><a id="!!(E)(ExecutionContext):Unit"></a>
+      <span class="permalink">
+      <a href="../../../com/wire/signals/SourceStream.html#!!(event:E)(implicitec:scala.concurrent.ExecutionContext):Unit" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span title="gt4s: $bang$bang" class="name">!!</span><span class="params">(<span name="event">event: <span class="extype" name="com.wire.signals.SourceStream.E">E</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ec">ec: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <span class="extype" name="scala.Unit">Unit</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">A version of the <code>publish</code> method which takes the implicit execution context for dispatching.</p><div class="fullcomment"><div class="comment cmt"><p>A version of the <code>publish</code> method which takes the implicit execution context for dispatching.</p><p>The difference between <code>!!</code> and <code>!</code> (and also between the two <code>publish</code> methods) is that even if the source's
+execution context is the same as the subscriber's execution context, if we send an event using <code>!</code>, it will be
+wrapped in a future and executed asychronously. If we use <code>!!</code> then for subscribers working in the same
+execution context the call will be synchronous. This may be desirable in some cases, but please use with caution.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@inline</span><span class="args">()</span>
               
         </dd></dl></div>

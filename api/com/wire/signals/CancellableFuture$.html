@@ -711,9 +711,9 @@ it will be lost.
 Typically used together with <code>map</code> or a similar method.
 </p></div><dl class="attributes block"> <dt>To do</dt><dd><span class="cmt"><p>Test if it works as designed.</p></span></dd></dl></div>
     </li><li name="com.wire.signals.CancellableFuture#sequence" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="sequence[T](in:TraversableOnce[com.wire.signals.CancellableFuture[T]])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[TraversableOnce[T]]"></a><a id="sequence[T](TraversableOnce[CancellableFuture[T]])(ExecutionContext):CancellableFuture[TraversableOnce[T]]"></a>
+      <a id="sequence[T](futures:Iterable[com.wire.signals.CancellableFuture[T]])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Iterable[T]]"></a><a id="sequence[T](Iterable[CancellableFuture[T]])(ExecutionContext):CancellableFuture[Iterable[T]]"></a>
       <span class="permalink">
-      <a href="../../../com/wire/signals/CancellableFuture$.html#sequence[T](in:TraversableOnce[com.wire.signals.CancellableFuture[T]])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[TraversableOnce[T]]" title="Permalink">
+      <a href="../../../com/wire/signals/CancellableFuture$.html#sequence[T](futures:Iterable[com.wire.signals.CancellableFuture[T]])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Iterable[T]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -722,16 +722,13 @@ Typically used together with <code>map</code> or a similar method.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">sequence</span><span class="tparams">[<span name="T">T</span>]</span><span class="params">(<span name="in">in: <span class="extype" name="scala.TraversableOnce">TraversableOnce</span>[<a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="com.wire.signals.CancellableFuture.sequence.T">T</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="scala.TraversableOnce">TraversableOnce</span>[<span class="extype" name="com.wire.signals.CancellableFuture.sequence.T">T</span>]]</span>
+        <span class="name">sequence</span><span class="tparams">[<span name="T">T</span>]</span><span class="params">(<span name="futures">futures: <span class="extype" name="scala.Iterable">Iterable</span>[<a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="com.wire.signals.CancellableFuture.sequence.T">T</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="scala.Iterable">Iterable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.sequence.T">T</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt">Creates a new <code>CancellableFuture[TraversableOnce[T]]</code> from a TraversableOnce of <code>CancellableFuture[T]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a new <code>CancellableFuture[TraversableOnce[T]]</code> from a TraversableOnce of <code>CancellableFuture[T]</code>.
-The original futures are executed asynchronously, but checking their results will be done in sequence.
-I.e., if the sequence is (A, B) where A takes a long time to complete, and B completes faster,
-the new cancellable future will anyway check the result of B only after A is completed.
-In practice, it means that if any of the original cancellable futures fails or is cancelled, the resulting
-one will first wait for all those before it and fail by itself only after reaching the failed one.
-</p></div><dl class="attributes block"> <dt>To do</dt><dd><span class="cmt"><p>Cancelling the resulting future will NOT cancel the original ones. (FIX IT)</p></span></dd></dl></div>
+      <p class="shortcomment cmt">Creates a new <code>CancellableFuture[Iterable[T]]</code> from a Iterable of <code>Iterable[T]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a new <code>CancellableFuture[Iterable[T]]</code> from a Iterable of <code>Iterable[T]</code>.
+The original futures are executed asynchronously. If any of the original cancellable futures fails or is cancelled,
+the resulting one will fail immediately, but the original ones will not.
+</p></div></div>
     </li><li name="com.wire.signals.CancellableFuture#successful" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="successful[T](res:T):com.wire.signals.CancellableFuture[T]"></a><a id="successful[T](T):CancellableFuture[T]"></a>
       <span class="permalink">
@@ -797,9 +794,9 @@ one will first wait for all those before it and fail by itself only after reachi
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="com.wire.signals.CancellableFuture#traverse" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="traverse[T,U](in:TraversableOnce[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[TraversableOnce[U]]"></a><a id="traverse[T,U](TraversableOnce[T])((T)⇒CancellableFuture[U])(ExecutionContext):CancellableFuture[TraversableOnce[U]]"></a>
+      <a id="traverse[T,U](in:Iterable[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Iterable[U]]"></a><a id="traverse[T,U](Iterable[T])((T)⇒CancellableFuture[U])(ExecutionContext):CancellableFuture[Iterable[U]]"></a>
       <span class="permalink">
-      <a href="../../../com/wire/signals/CancellableFuture$.html#traverse[T,U](in:TraversableOnce[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[TraversableOnce[U]]" title="Permalink">
+      <a href="../../../com/wire/signals/CancellableFuture$.html#traverse[T,U](in:Iterable[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Iterable[U]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -808,19 +805,19 @@ one will first wait for all those before it and fail by itself only after reachi
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">traverse</span><span class="tparams">[<span name="T">T</span>, <span name="U">U</span>]</span><span class="params">(<span name="in">in: <span class="extype" name="scala.TraversableOnce">TraversableOnce</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverse.T">T</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="com.wire.signals.CancellableFuture.traverse.T">T</span>) ⇒ <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="com.wire.signals.CancellableFuture.traverse.U">U</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="scala.TraversableOnce">TraversableOnce</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverse.U">U</span>]]</span>
+        <span class="name">traverse</span><span class="tparams">[<span name="T">T</span>, <span name="U">U</span>]</span><span class="params">(<span name="in">in: <span class="extype" name="scala.Iterable">Iterable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverse.T">T</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="com.wire.signals.CancellableFuture.traverse.T">T</span>) ⇒ <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="com.wire.signals.CancellableFuture.traverse.U">U</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="scala.Iterable">Iterable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverse.U">U</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt">Transforms a <code>TraversableOnce[T]</code> into a <code>CancellableFuture[TraversableOnce[U]]</code> using
-the provided function <code>T =&gt; CancellableFuture[U]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Transforms a <code>TraversableOnce[T]</code> into a <code>CancellableFuture[TraversableOnce[U]]</code> using
+      <p class="shortcomment cmt">Transforms an <code>Iterable[T]</code> into a <code>CancellableFuture[Iterable[U]]</code> using
+the provided function <code>T =&gt; CancellableFuture[U]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Transforms an <code>Iterable[T]</code> into a <code>CancellableFuture[Iterable[U]]</code> using
 the provided function <code>T =&gt; CancellableFuture[U]</code>. Each cancellable future will be executed
 asynchronously. If any of the original cancellable futures fails or is cancelled, the resulting
-one will first wait for all those before it and fail by itself only after reaching the failed one.
+one will will fail immediately, but the other original ones will not.
 </p></div><dl class="attributes block"> <dt>To do</dt><dd><span class="cmt"><p>Cancelling the resulting future will NOT cancel the original ones. (FIX IT)</p></span></dd></dl></div>
     </li><li name="com.wire.signals.CancellableFuture#traverseSequential" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="traverseSequential[T,U](in:Traversable[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Traversable[U]]"></a><a id="traverseSequential[T,U](Traversable[T])((T)⇒CancellableFuture[U])(ExecutionContext):CancellableFuture[Traversable[U]]"></a>
+      <a id="traverseSequential[T,U](in:Iterable[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Iterable[U]]"></a><a id="traverseSequential[T,U](Iterable[T])((T)⇒CancellableFuture[U])(ExecutionContext):CancellableFuture[Iterable[U]]"></a>
       <span class="permalink">
-      <a href="../../../com/wire/signals/CancellableFuture$.html#traverseSequential[T,U](in:Traversable[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Traversable[U]]" title="Permalink">
+      <a href="../../../com/wire/signals/CancellableFuture$.html#traverseSequential[T,U](in:Iterable[T])(f:T=&gt;com.wire.signals.CancellableFuture[U])(implicitexecutor:scala.concurrent.ExecutionContext):com.wire.signals.CancellableFuture[Iterable[U]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -829,11 +826,11 @@ one will first wait for all those before it and fail by itself only after reachi
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">traverseSequential</span><span class="tparams">[<span name="T">T</span>, <span name="U">U</span>]</span><span class="params">(<span name="in">in: <span class="extype" name="scala.Traversable">Traversable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.T">T</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.T">T</span>) ⇒ <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.U">U</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="scala.Traversable">Traversable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.U">U</span>]]</span>
+        <span class="name">traverseSequential</span><span class="tparams">[<span name="T">T</span>, <span name="U">U</span>]</span><span class="params">(<span name="in">in: <span class="extype" name="scala.Iterable">Iterable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.T">T</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.T">T</span>) ⇒ <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.U">U</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</span></span>)</span><span class="result">: <a href="CancellableFuture.html" class="extype" name="com.wire.signals.CancellableFuture">CancellableFuture</a>[<span class="extype" name="scala.Iterable">Iterable</span>[<span class="extype" name="com.wire.signals.CancellableFuture.traverseSequential.U">U</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt">Transforms a <code>TraversableOnce[T]</code> into a <code>CancellableFuture[TraversableOnce[U]]</code> using
-the provided function <code>T =&gt; CancellableFuture[U]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Transforms a <code>TraversableOnce[T]</code> into a <code>CancellableFuture[TraversableOnce[U]]</code> using
+      <p class="shortcomment cmt">Transforms an <code>Iterable[T]</code> into a <code>CancellableFuture[Iterable[U]]</code> using
+the provided function <code>T =&gt; CancellableFuture[U]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Transforms an <code>Iterable[T]</code> into a <code>CancellableFuture[Iterable[U]]</code> using
 the provided function <code>T =&gt; CancellableFuture[U]</code>. Each cancellable future will be executed
 synchronously. If any of the original cancellable futures fails or is cancelled, the resulting one
 also fails and no consecutive original futures will be executed.

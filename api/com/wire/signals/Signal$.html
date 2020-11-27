@@ -384,9 +384,9 @@ The new signal's value will be <code>true</code> only if *all* parent signals va
 changes its value to <code>false</code>.
 </p></div><dl class="paramcmts block"><dt class="param">sources</dt><dd class="cmt"><p>A variable arguments list of parent signals of the type <code>Boolean</code>.</p></dd><dt>returns</dt><dd class="cmt"><p>A new signal of <code>Boolean</code>.</p></dd></dl></div>
     </li><li name="com.wire.signals.Signal#apply" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="apply[V](v:V):com.wire.signals.SourceSignal[V]withcom.wire.signals.NoAutowiring"></a><a id="apply[V](V):SourceSignal[V]withNoAutowiring"></a>
+      <a id="apply[V](v:V):com.wire.signals.SourceSignal[V]"></a><a id="apply[V](V):SourceSignal[V]"></a>
       <span class="permalink">
-      <a href="../../../com/wire/signals/Signal$.html#apply[V](v:V):com.wire.signals.SourceSignal[V]withcom.wire.signals.NoAutowiring" title="Permalink">
+      <a href="../../../com/wire/signals/Signal$.html#apply[V](v:V):com.wire.signals.SourceSignal[V]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -395,16 +395,16 @@ changes its value to <code>false</code>.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">apply</span><span class="tparams">[<span name="V">V</span>]</span><span class="params">(<span name="v">v: <span class="extype" name="com.wire.signals.Signal.apply.V">V</span></span>)</span><span class="result">: <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a>[<span class="extype" name="com.wire.signals.Signal.apply.V">V</span>] with <a href="NoAutowiring.html" class="extype" name="com.wire.signals.NoAutowiring">NoAutowiring</a></span>
+        <span class="name">apply</span><span class="tparams">[<span name="V">V</span>]</span><span class="params">(<span name="v">v: <span class="extype" name="com.wire.signals.Signal.apply.V">V</span></span>)</span><span class="result">: <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a>[<span class="extype" name="com.wire.signals.Signal.apply.V">V</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Creates a new <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a> of values of the type <code>V</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a new <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a> of values of the type <code>V</code>. A usual entry point for the signals network.
 Starts initialized to the given value.
 </p></div><dl class="paramcmts block"><dt class="tparam">V</dt><dd class="cmt"><p>The type of the values which can be published to the signal.</p></dd><dt class="param">v</dt><dd class="cmt"><p>The initial value in the signal.</p></dd><dt>returns</dt><dd class="cmt"><p>A new signal of values of the type <code>V</code>.</p></dd></dl></div>
     </li><li name="com.wire.signals.Signal#apply" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="apply[V]():com.wire.signals.SourceSignal[V]withcom.wire.signals.NoAutowiring"></a><a id="apply[V]():SourceSignal[V]withNoAutowiring"></a>
+      <a id="apply[V]():com.wire.signals.SourceSignal[V]"></a><a id="apply[V]():SourceSignal[V]"></a>
       <span class="permalink">
-      <a href="../../../com/wire/signals/Signal$.html#apply[V]():com.wire.signals.SourceSignal[V]withcom.wire.signals.NoAutowiring" title="Permalink">
+      <a href="../../../com/wire/signals/Signal$.html#apply[V]():com.wire.signals.SourceSignal[V]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -413,7 +413,7 @@ Starts initialized to the given value.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">apply</span><span class="tparams">[<span name="V">V</span>]</span><span class="params">()</span><span class="result">: <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a>[<span class="extype" name="com.wire.signals.Signal.apply.V">V</span>] with <a href="NoAutowiring.html" class="extype" name="com.wire.signals.NoAutowiring">NoAutowiring</a></span>
+        <span class="name">apply</span><span class="tparams">[<span name="V">V</span>]</span><span class="params">()</span><span class="result">: <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a>[<span class="extype" name="com.wire.signals.Signal.apply.V">V</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Creates a new <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a> of values of the type <code>V</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a new <a href="SourceSignal.html" class="extype" name="com.wire.signals.SourceSignal">SourceSignal</a> of values of the type <code>V</code>. A usual entry point for the signals network.
@@ -495,7 +495,7 @@ a regular signal holding a (in theory mutable) value.
         <span class="name">empty</span><span class="tparams">[<span name="V">V</span>]</span><span class="result">: <a href="Signal.html" class="extype" name="com.wire.signals.Signal">Signal</a>[<span class="extype" name="com.wire.signals.Signal.empty.V">V</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Creates an empty, uninitialized <a href="ConstSignal.html" class="extype" name="com.wire.signals.ConstSignal">ConstSignal</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates an empty, uninitialized <a href="ConstSignal.html" class="extype" name="com.wire.signals.ConstSignal">ConstSignal</a>.
+      <p class="shortcomment cmt">Returns an empty, uninitialized, immutable signal of the given type.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an empty, uninitialized, immutable signal of the given type.
 Empty signals can be used in flatMap chains to signalize (ha!) that for the given value of the parent signal all further
 computations should be withheld until the value changes to something more useful.
 <code><code><code>
@@ -587,7 +587,7 @@ every change of value of any of the parent signals, the folding function will be
 the current values to produce a result, analogous to the <code>foldLeft</code> method in Scala collections.
 </p></div><dl class="paramcmts block"><dt class="tparam">V</dt><dd class="cmt"><p>The type of values in the parent streams.</p></dd><dt class="tparam">Z</dt><dd class="cmt"><p>The type of the initial and result value of the new signal.</p></dd><dt class="param">sources</dt><dd class="cmt"><p>A variable arguments list of parent signals, all with values of the same type <code>V</code>.</p></dd><dt class="param">zero</dt><dd class="cmt"><p>The initial value of the type <code>Z</code>.</p></dd><dt class="param">f</dt><dd class="cmt"><p>A folding function which takes the value of the type <code>Z</code>, another value of the type <code>V</code>, and produces a new value
          of the type <code>Z</code> again, so then it can use it in the next interation as its first argument, together with the current
-         value of the next of the parent signals.</p></dd><dt>returns</dt><dd class="cmt"><p>A new signal of values of the type <code>Z</code>.</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><span class="extype" name="scala.collection.GenTraversableOnce">scala.collection.GenTraversableOnce</span></p></span></dd></dl></div>
+         value of the next of the parent signals.</p></dd><dt>returns</dt><dd class="cmt"><p>A new signal of values of the type <code>Z</code>.</p></dd></dl></div>
     </li><li name="com.wire.signals.Signal#from" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="from[V](source:com.wire.signals.EventStream[V]):com.wire.signals.Signal[V]"></a><a id="from[V](EventStream[V]):Signal[V]"></a>
       <span class="permalink">
