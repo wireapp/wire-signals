@@ -72,11 +72,11 @@ package object testutils {
     * Very useful for checking that something DOESN'T happen (e.g., ensure that a signal doesn't get updated after
     * performing a series of actions)
     */
-  def awaitAllTasks(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue) = {
+  def awaitAllTasks(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue): Unit = {
     if (!tasksCompletedAfterWait) fail(new TimeoutException(s"Background tasks didn't complete in ${timeout.toSeconds} seconds"))
   }
 
-  def tasksRemaining(implicit dq: DispatchQueue) = dq.hasRemainingTasks
+  def tasksRemaining(implicit dq: DispatchQueue): Boolean = dq.hasRemainingTasks
 
   private def tasksCompletedAfterWait(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue) = {
     val start = Instant.now

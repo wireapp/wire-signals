@@ -17,7 +17,7 @@
  */
 package com.wire.signals
 
-class IntSignal(v: Int = 0) extends SourceSignal[Int](Some(v)) {
+final class IntSignal(v: Int = 0) extends SourceSignal[Int](Some(v)) {
   private var _wired = false
 
   def isWired: Boolean = _wired
