@@ -53,12 +53,15 @@ lazy val root = (project in file("."))
     name := "wire-signals",
     crossScalaVersions := supportedScalaVersions,
     libraryDependencies ++= Seq(
-      "org.threeten"                  %  "threetenbp"            % "1.4.4"            % Provided,
+      "org.threeten" %  "threetenbp" % "1.4.4" % Provided,
 
       //Test dependencies
-      "org.scalatest"                 %% "scalatest"             % "3.0.9"            % Test
+      "org.scalatest" %% "scalatest" % "3.0.9" % Test,
+      "org.scalameta" %% "munit" % "0.7.19" % Test
     )
   )
+
+testFrameworks += new TestFramework("munit.Framework")
 
 
 

@@ -17,102 +17,95 @@
  */
 package com.wire.signals
 
-import org.scalatest._
-
-class EmptySignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
-
-  feature("Uninitialized signals") {
-    scenario("Value of an uninitialized signal") {
-      val signal = Signal[Int]()
-      signal.currentValue shouldBe empty
-      signal ! 1
-      signal.currentValue.value shouldEqual 1
-    }
-
-    scenario("Subscribing to an uninitialized signal") {
-      val signal = Signal[Int]()
-      val fan = Follower(signal).subscribed
-      fan.lastReceived shouldBe empty
-      signal ! 1
-      fan.lastReceived.value shouldEqual 1
-    }
-
-    scenario("Mapping an uninitialized signal") {
-      val signal = Signal[Int]()
-      val chain = signal.map(_ + 42)
-      chain.currentValue shouldBe empty
-      signal ! 1
-      chain.currentValue.value shouldEqual 43
-    }
-
-    scenario("Subscribing to a mapped but uninitialized signal") {
-      val signal = Signal[Int]()
-      val chain = signal.map(_ + 42)
-      val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
-      signal ! 1
-      fan.lastReceived.value shouldEqual 43
-    }
+class EmptySignalSpec extends munit.FunSuite {
+  test("Value of an uninitialized signal") {
+    val signal = Signal[Int]()
+    assertEquals(signal.currentValue, None)
+    signal ! 1
+    assertEquals(signal.currentValue, Some(1))
   }
 
-  feature("Combining an empty signal with another signal") {
-    scenario("Value of a flatMapped signal") {
-      val signalA = Signal(1)
-      val signalB = Signal[Int]()
-      val chain = signalA.flatMap(a => signalB.map(b => a + b))
-      chain.currentValue shouldBe empty
-      signalB ! 42
-      chain.currentValue.value shouldEqual 43
-    }
+  test("Subscribing to an uninitialized signal") {
+    val signal = Signal[Int]()
+    val fan = Follower(signal).subscribed
+    assertEquals(fan.lastReceived, None)
+    signal ! 1
+    assertEquals(fan.lastReceived, Some(1))
+  }
 
-    scenario("Subscribing to a flatMapped signal") {
-      val signalA = Signal(1)
-      val signalB = Signal[Int]()
-      val chain = signalA.flatMap(a => signalB.map(b => a + b))
-      val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
-      signalB ! 42
-      fan.lastReceived.value shouldEqual 43
-    }
+  test("Mapping an uninitialized signal") {
+    val signal = Signal[Int]()
+    val chain = signal.map(_ + 42)
+    assertEquals(chain.currentValue, None)
+    signal ! 1
+    assertEquals(chain.currentValue, Some(43))
+  }
 
-    scenario("Zipping with an empty signal") {
-      val signalA = Signal(1)
-      val signalB = Signal[String]()
-      val chain = signalA.zip(signalB)
-      val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
-      signalB ! "one"
-      fan.lastReceived.value shouldEqual(1, "one")
-    }
+  test("Subscribing to a mapped but uninitialized signal") {
+    val signal = Signal[Int]()
+    val chain = signal.map(_ + 42)
+    val fan = Follower(chain).subscribed
+    assertEquals(fan.lastReceived, None)
+    signal ! 1
+    assertEquals(fan.lastReceived, Some(43))
+  }
 
-    scenario("Combining with an empty signal") {
-      val signalA = Signal(1)
-      val signalB = Signal[Int]()
-      val chain = signalA.combine(signalB)(_ + _)
-      val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
-      signalB ! 42
-      fan.lastReceived.value shouldEqual 43
-    }
+  test("Combining an initialized and an uninitialized signal with a flatMap") {
+    val signalA = Signal(1)
+    val signalB = Signal[Int]()
+    val chain = signalA.flatMap(a => signalB.map(b => a + b))
+    assertEquals(chain.currentValue, None)
+    signalB ! 42
+    assertEquals(chain.currentValue, Some(43))
+  }
 
-    scenario("Map after filter") {
-      val signalA = Signal(1)
-      val chain = signalA.filter(_ % 2 == 0).map(_ + 42)
-      val fan = Follower(chain).subscribed
-      chain.currentValue shouldBe empty
-      fan.received shouldBe empty
+  test("Subscribing to a flatMapped signal") {
+    val signalA = Signal(1)
+    val signalB = Signal[Int]()
+    val chain = signalA.flatMap(a => signalB.map(b => a + b))
+    val fan = Follower(chain).subscribed
+    assertEquals(fan.lastReceived, None)
+    signalB ! 42
+    assertEquals(fan.lastReceived, Some(43))
+  }
 
-      signalA ! 2
-      chain.currentValue shouldEqual Some(44)
-      fan.received shouldEqual Seq(44)
+  test("Zipping with an empty signal") {
+    val signalA = Signal(1)
+    val signalB = Signal[String]()
+    val chain = signalA.zip(signalB)
+    val fan = Follower(chain).subscribed
+    assertEquals(fan.lastReceived, None)
+    signalB ! "one"
+    assertEquals(fan.lastReceived, Some((1, "one")))
+  }
 
-      signalA ! 3
-      chain.currentValue shouldEqual None
-      fan.received shouldEqual Seq(44)
+  test("Combining with an empty signal") {
+    val signalA = Signal(1)
+    val signalB = Signal[Int]()
+    val chain = signalA.combine(signalB)(_ + _)
+    val fan = Follower(chain).subscribed
+    assertEquals(fan.lastReceived, None)
+    signalB ! 42
+    assertEquals(fan.lastReceived, Some(43))
+  }
 
-      signalA ! 4
-      chain.currentValue shouldEqual Some(46)
-      fan.received shouldEqual Seq(44, 46)
-    }
+  test("Map after filter") {
+    val signalA = Signal(1)
+    val chain = signalA.filter(_ % 2 == 0).map(_ + 42)
+    val fan = Follower(chain).subscribed
+    assertEquals(chain.currentValue, None)
+    assertEquals(fan.received, Vector.empty)
+
+    signalA ! 2
+    assertEquals(chain.currentValue, Some(44))
+    assertEquals(fan.received, Vector(44))
+
+    signalA ! 3
+    assertEquals(chain.currentValue, None)
+    assertEquals(fan.received, Vector(44))
+
+    signalA ! 4
+    assertEquals(chain.currentValue, Some(46))
+    assertEquals(fan.received, Vector(44, 46))
   }
 }
