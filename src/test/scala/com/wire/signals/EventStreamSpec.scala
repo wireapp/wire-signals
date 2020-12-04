@@ -19,122 +19,97 @@ package com.wire.signals
 
 import com.wire.signals.testutils.result
 import utils._
-import org.scalatest.{BeforeAndAfter, FeatureSpec, Matchers, OptionValues}
 
-import scala.language.postfixOps
-import scala.concurrent.duration._
 import scala.concurrent.Promise
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
-class EventStreamSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
+class EventStreamSpec extends munit.FunSuite {
 
   import EventContext.Implicits.global
 
-  feature("FlatMapLatest") {
+  test("unsubscribe from source and current mapped signal on onUnwire") {
+    val a: SourceStream[Int] = EventStream()
+    val b: SourceStream[Int] = EventStream()
 
-    scenario("unsubscribe from source and current mapped signal on onUnwire") {
-      val a: SourceStream[Int] = EventStream()
-      val b: SourceStream[Int] = EventStream()
+    val subscription = a.flatMap(_ => b) { _ => }
+    a ! 1
 
-      val subscription = a.flatMap(_ => b) { _ => }
-      a ! 1
+    assert(b.hasSubscribers, "mapped event stream should have subscriber after element emitting from source event stream")
 
-      withClue("mapped event stream should have subscriber after element emitting from source event stream.") {
-        b.hasSubscribers shouldBe true
-      }
+    subscription.unsubscribe()
 
-      subscription.unsubscribe()
-
-      withClue("source event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream") {
-        a.hasSubscribers shouldBe false
-      }
-
-      withClue("mapped event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream") {
-        b.hasSubscribers shouldBe false
-      }
-    }
-
-    scenario("discard old mapped event stream when new element emitted from source event stream") {
-      val a: SourceStream[String] = EventStream()
-      val b: SourceStream[String] = EventStream()
-      val c: SourceStream[String] = EventStream()
-
-      var flatMapCalledCount = 0
-      var lastReceivedElement: Option[String] = None
-      val subscription = a.flatMap { _ =>
-        returning(if (flatMapCalledCount == 0) b else c) { _ => flatMapCalledCount += 1 }
-      } { elem => lastReceivedElement = Some(elem) }
-
-      a ! "a"
-
-      withClue("mapped event stream 'b' should have subscriber after first element emitting from source event stream.") {
-        b.hasSubscribers shouldBe true
-      }
-
-      b ! "b"
-
-      withClue("flatMapLatest event stream should provide events emitted from mapped signal 'b'") {
-        lastReceivedElement shouldBe Some("b")
-      }
-
-      a ! "a"
-
-      withClue("mapped event stream 'b' should have no subscribers after second element emitting from source event stream.") {
-        b.hasSubscribers shouldBe false
-      }
-
-      withClue("mapped event stream 'c' should have subscriber after second element emitting from source event stream.") {
-        c.hasSubscribers shouldBe true
-      }
-
-      c ! "c"
-      b ! "b"
-
-      withClue("flatMapLatest event stream should provide events emitted from mapped signal 'c'") {
-        lastReceivedElement shouldBe Some("c")
-      }
-
-      subscription.unsubscribe()
-    }
-
+    assert(!a.hasSubscribers, "source event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream")
+    assert(!b.hasSubscribers, "mapped event stream should have no subscribers after onUnwire was called on FlatMapLatestEventStream")
   }
 
-  feature("EventStream from a future") {
-    scenario("emit an event when a future is successfully completed") {
-      implicit val dq: DispatchQueue = SerialDispatchQueue()
-      val promise = Promise[Int]()
-      val resPromise = Promise[Int]()
+  test("discard old mapped event stream when new element emitted from source event stream") {
+    val a: SourceStream[String] = EventStream()
+    val b: SourceStream[String] = EventStream()
+    val c: SourceStream[String] = EventStream()
 
-      EventStream.from(promise.future){ event =>
-        event shouldEqual 1
-        resPromise.success(event)
-      }
+    var flatMapCalledCount = 0
+    var lastReceivedElement: Option[String] = None
+    val subscription = a.flatMap { _ =>
+      returning(if (flatMapCalledCount == 0) b else c) { _ => flatMapCalledCount += 1 }
+    } { elem => lastReceivedElement = Some(elem) }
 
-      testutils.withDelay(promise.success(1))
+    a ! "a"
 
-      testutils.result(resPromise.future) shouldEqual 1
-    }
+    assert(b.hasSubscribers, "mapped event stream 'b' should have subscriber after first element emitting from source event stream")
 
-    scenario("don't emit an event when a future is completed with a failure") {
-      val promise = Promise[Int]()
-      val resPromise = Promise[Int]()
+    b ! "b"
 
-      EventStream.from(promise.future) { event => resPromise.success(event) }
+    assertEquals(lastReceivedElement, Some("b"), "flatMapLatest event stream should provide events emitted from mapped signal 'b'")
 
-      promise.failure(new IllegalArgumentException)
+    a ! "a"
 
-      testutils.tryResult(resPromise.future).isFailure shouldBe true
-    }
+    assert(!b.hasSubscribers, "mapped event stream 'b' should have no subscribers after second element emitting from source event stream")
 
-    scenario("emit an event after delay by wrapping a cancellable future") {
-      val promise = Promise[Long]
-      val t = System.currentTimeMillis()
-      val stream = EventStream.from(CancellableFuture.delay(1 seconds))
+    assert(c.hasSubscribers, "mapped event stream 'c' should have subscriber after second element emitting from source event stream")
 
-      stream { _ => promise.success(System.currentTimeMillis() - t) }
+    c ! "c"
+    b ! "b"
 
-      result(promise.future) >= 1000L shouldBe true
-    }
+    assertEquals(lastReceivedElement, Some("c")) // flatMapLatest event stream should provide events emitted from mapped signal 'c'
+
+    subscription.unsubscribe()
   }
 
-  case object FakeError extends Throwable
+
+  test("emit an event when a future is successfully completed") {
+    implicit val dq: DispatchQueue = SerialDispatchQueue()
+    val promise = Promise[Int]()
+    val resPromise = Promise[Int]()
+
+    EventStream.from(promise.future){ event =>
+      assertEquals(event, 1)
+      resPromise.success(event)
+    }
+
+    testutils.withDelay(promise.success(1))
+
+    assertEquals(testutils.result(resPromise.future), 1)
+  }
+
+  test("don't emit an event when a future is completed with a failure") {
+    val promise = Promise[Int]()
+    val resPromise = Promise[Int]()
+
+    EventStream.from(promise.future) { event => resPromise.success(event) }
+
+    promise.failure(new IllegalArgumentException)
+
+    assert(testutils.tryResult(resPromise.future).isFailure)
+  }
+
+  test("emit an event after delay by wrapping a cancellable future") {
+    val promise = Promise[Long]
+    val t = System.currentTimeMillis()
+    val stream = EventStream.from(CancellableFuture.delay(1 seconds))
+
+    stream { _ => promise.success(System.currentTimeMillis() - t) }
+
+    assert(result(promise.future) >= 1000L)
+  }
 }
