@@ -17,98 +17,92 @@
  */
 package com.wire.signals
 
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest._
-
-class EventContextSpec extends FeatureSpec with Matchers with BeforeAndAfter with TableDrivenPropertyChecks {
-  test =>
+class EventContextSpec extends munit.FunSuite {
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
-  before {
-    received = Seq[Int]()
+  override def beforeEach(context: BeforeEach): Unit = {
+    received = Seq.empty
   }
 
-  feature("Event context lifecycle") {
-    scenario("Pausing, resuming and destroying the global event context") {
-      implicit val ec: EventContext = EventContext.Global
-      val s = Signal(1)
-      s(capture)
+  test("Pausing, resuming and destroying the global event context") {
+    implicit val ec: EventContext = EventContext.Global
+    val s = Signal(1)
+    s(capture)
 
-      ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+    assertEquals(ec.isContextStarted, true)
+    assertEquals(s.hasSubscribers, true)
 
-      ec.stop()
-      s ! 2
-      ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+    ec.stop()
+    s ! 2
+    assertEquals(ec.isContextStarted, true)
+    assertEquals(s.hasSubscribers, true)
 
-      ec.start()
-      s ! 3
-      ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+    ec.start()
+    s ! 3
+    assertEquals(ec.isContextStarted, true)
+    assertEquals(s.hasSubscribers, true)
 
-      ec.destroy()
-      s ! 4
-      ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+    ec.destroy()
+    s ! 4
+    assertEquals(ec.isContextStarted, true)
+    assertEquals(s.hasSubscribers, true)
 
-      received shouldEqual Seq(1, 2, 3, 4)
-    }
+    assertEquals(received, Seq(1, 2, 3, 4))
+  }
 
-    scenario("Pausing, resuming and destroying a normal event context") {
-      implicit val ec: EventContext = EventContext()
+  test("Pausing, resuming and destroying a normal event context") {
+    implicit val ec: EventContext = EventContext()
 
-      val s = Signal(0)
-      s(capture)
-      s.hasSubscribers shouldEqual true
-      Seq(1, 2) foreach (s ! _)
-      s ! 3
-      s.hasSubscribers shouldEqual true
+    val s = Signal(0)
+    s(capture)
+    assertEquals(s.hasSubscribers, true)
+    Seq(1, 2) foreach (s ! _)
+    s ! 3
+    assertEquals(s.hasSubscribers, true)
 
-      ec.stop()
-      Seq(4, 5) foreach (s ! _)
-      ec.isContextStarted shouldEqual false
-      s.hasSubscribers shouldEqual false
+    ec.stop()
+    Seq(4, 5) foreach (s ! _)
+    assertEquals(ec.isContextStarted, false)
+    assertEquals(s.hasSubscribers, false)
 
-      ec.start()
-      Seq(6, 7) foreach (s ! _)
-      ec.isContextStarted shouldEqual true
-      s.hasSubscribers shouldEqual true
+    ec.start()
+    Seq(6, 7) foreach (s ! _)
+    assertEquals(ec.isContextStarted , true)
+    assertEquals(s.hasSubscribers, true)
 
-      ec.destroy()
-      Seq(8, 9) foreach (s ! _)
-      ec.isContextStarted shouldEqual false
-      s.hasSubscribers shouldEqual false
+    ec.destroy()
+    Seq(8, 9) foreach (s ! _)
+    assertEquals(ec.isContextStarted, false)
+    assertEquals(s.hasSubscribers, false)
 
-      received shouldEqual Seq(0, 1, 2, 3, 5, 6, 7)
-    }
+    assertEquals(received, Seq(0, 1, 2, 3, 5, 6, 7))
+  }
 
-    scenario("Pausing, resuming and destroying a normal event context, but with forced event sources") {
-      implicit val ec: EventContext = EventContext()
-      val s = new SourceSignal[Int](Some(0)) with ForcedEventSource[Int]
-      s(capture)
+  test("Pausing, resuming and destroying a normal event context, but with forced event sources") {
+    implicit val ec: EventContext = EventContext()
+    val s = new SourceSignal[Int](Some(0)) with ForcedEventSource[Int]
+    s(capture)
 
-      s.hasSubscribers shouldEqual true
-      Seq(1, 2) foreach (s ! _)
+    assertEquals(s.hasSubscribers, true)
+    Seq(1, 2) foreach (s ! _)
 
-      ec.start()
-      s ! 3
-      s.hasSubscribers shouldEqual true
+    ec.start()
+    s ! 3
+    assertEquals(s.hasSubscribers, true)
 
-      ec.stop()
-      Seq(4, 5) foreach (s ! _)
-      s.hasSubscribers shouldEqual true
+    ec.stop()
+    Seq(4, 5) foreach (s ! _)
+    assertEquals(s.hasSubscribers, true)
 
-      ec.start()
-      Seq(6, 7) foreach (s ! _)
-      s.hasSubscribers shouldEqual true
+    ec.start()
+    Seq(6, 7) foreach (s ! _)
+    assertEquals(s.hasSubscribers, true)
 
-      ec.destroy()
-      Seq(8, 9) foreach (s ! _)
-      s.hasSubscribers shouldEqual false
+    ec.destroy()
+    Seq(8, 9) foreach (s ! _)
+    assertEquals(s.hasSubscribers, false)
 
-      received shouldEqual Seq(0, 1, 2, 3, 4, 5, 6, 7)
-    }
+    assertEquals(received, Seq(0, 1, 2, 3, 4, 5, 6, 7))
   }
 }
