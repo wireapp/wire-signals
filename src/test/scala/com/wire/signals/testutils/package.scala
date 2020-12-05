@@ -84,4 +84,6 @@ package object testutils {
     while(tasksRemaining && Instant.now().isBefore(before)) Thread.sleep(10)
     !tasksRemaining
   }
+
+  def andThen(): Unit = Thread.sleep(1)
 }

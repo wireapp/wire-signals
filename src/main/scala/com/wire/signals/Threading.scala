@@ -11,7 +11,7 @@ object Threading {
   /** An implicit reference to the default execution context. It is lazy, giving you a chance to replace the default
     * context with one of your own choosing before it is used for the first time.
     */
-  implicit lazy val defaultContext: ExecutionContext = apply()
+  implicit lazy val defaultContext: DispatchQueue = apply()
 
   /** A number of CPUs available for executing tasks, but at least two.
     * If there is one CPU available to the Java virtual machine, there's not much you can do about concurrency anyway, can you.

@@ -21,263 +21,277 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, CyclicBarrier, TimeUnit}
 
 import testutils._
-import org.scalatest._
-import Threading.defaultContext
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 
-class SignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter with BeforeAndAfterEach {
+class SignalSpec extends munit.FunSuite {
+  private implicit val defaultContext: DispatchQueue = Threading.defaultContext
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
   private val eventContext = EventContext()
 
-  override protected def beforeEach(): Unit = {
-    super.beforeEach()
+  override def beforeEach(context: BeforeEach): Unit = {
     received = Seq[Int]()
     eventContext.start()
   }
 
-  override protected def afterEach(): Unit = {
-    super.afterEach()
+  override def afterEach(context: AfterEach): Unit = {
     eventContext.stop()
   }
 
-  feature("Basic Signals") {
-    scenario("Receive initial value") {
-      val s = Signal(1)
-      s(capture)
-      Thread.sleep(100)
-      received shouldEqual Seq(1)
-    }
+  test("Receive initial value") {
+    val s = Signal(1)
+    s.foreach(capture)
+    andThen()
+    assertEquals(received, Seq(1))
+  }
 
-    scenario("Basic subscriber lifecycle") {
-      val s = Signal(1)
-      s.hasSubscribers shouldEqual false
-      val sub = s { value => () }
-      s.hasSubscribers shouldEqual true
+  test("Basic subscriber lifecycle") {
+    val s = Signal(1)
+    assert(!s.hasSubscribers)
+    val sub = s.foreach { _ => () }
+    assert(s.hasSubscribers)
+    sub.destroy()
+    assert(!s.hasSubscribers)
+  }
+
+  test("Don't receive events after unregistering a single subscriber") {
+    val s = Signal(1)
+    val sub = s.foreach(capture)
+    andThen()
+    s ! 2
+    andThen()
+    assertEquals(received, Seq(1, 2))
+
+    sub.destroy()
+    s ! 3
+    andThen()
+    assertEquals(received, Seq(1, 2))
+  }
+
+  test("Don't receive events after unregistering all subscribers") {
+    val s = Signal(1)
+    s.foreach(capture)
+    andThen()
+    s ! 2
+    andThen()
+    assertEquals(received, Seq(1, 2))
+
+    s.unsubscribeAll()
+    s ! 3
+    andThen()
+    assertEquals(received, Seq(1, 2))
+  }
+
+  test("Signal mutation") {
+    val s = Signal(42)
+    s.foreach(capture)
+    andThen()
+    assertEquals(received, Seq(42))
+    s.mutate(_ + 1)
+    andThen()
+    assertEquals(received, Seq(42, 43))
+    s.mutate(_ - 1)
+    andThen()
+    assertEquals(received, Seq(42, 43, 42))
+  }
+
+  test("Don't send the same value twice") {
+    val s = Signal(1)
+    s.foreach(capture)
+    Seq(1, 2, 2, 1).foreach { n =>
+      s ! n
+      andThen()
+    }
+    assertEquals(received, Seq(1, 2, 1))
+  }
+
+  test("Idempotent signal mutation") {
+    val s = Signal(42)
+    s.foreach(capture)
+    andThen()
+    assertEquals(received, Seq(42))
+    s.mutate(_ + 1 - 1)
+    andThen()
+    assertEquals(received, Seq(42))
+  }
+
+  test("Simple for comprehension") {
+    val s = Signal(0)
+    val s1 = Signal.const(1)
+    val s2 = Signal.const(2)
+    val r = for {
+      x <- s
+      y <- Seq(s1, s2)(x)
+    } yield y * 2
+    r.foreach(capture)
+    assertEquals(r.currentValue.get, 2)
+    s ! 1
+    andThen()
+    assertEquals(r.currentValue.get, 4)
+    assertEquals(received, Seq(2, 4))
+  }
+
+  test("Many concurrent subscriber changes") {
+    val barrier = new CyclicBarrier(50)
+    val num = new AtomicInteger(0)
+    val s = Signal(0)
+
+    def add(barrier: CyclicBarrier): Future[Subscription] = Future(blocking {
+      barrier.await()
+      s { _ => num.incrementAndGet() }
+    })
+
+    val subs = Await.result(Future.sequence(Seq.fill(50)(add(barrier))), 10.seconds)
+    assert(s.hasSubscribers)
+    assertEquals(num.getAndSet(0), 50)
+
+    s ! 42
+    assertEquals(num.getAndSet(0), 50)
+
+    val chaosBarrier = new CyclicBarrier(75)
+    val removals = Future.traverse(subs.take(25))(sub => Future(blocking {
+      chaosBarrier.await()
       sub.destroy()
-      s.hasSubscribers shouldEqual false
-    }
+    }))
+    val adding = Future.sequence(Seq.fill(25)(add(chaosBarrier)))
+    val sending = Future.traverse((1 to 25).toList)(n => Future(blocking {
+      chaosBarrier.await()
+      s ! n
+    }))
 
-    scenario("Don't receive events after unregistering a single subscriber") {
-      val s = Signal(1)
-      val sub = s(capture)
-      s ! 2
-      received shouldEqual Seq(1, 2)
+    val moreSubs = Await.result(adding, 10.seconds)
+    Await.result(removals, 10.seconds)
+    Await.result(sending, 10.seconds)
 
+    assert(num.get <= 75 * 25)
+    assert(num.get >= 25 * 25)
+    assert(s.hasSubscribers)
+
+    barrier.reset()
+    Await.result(Future.traverse(moreSubs ++ subs.drop(25))(sub => Future(blocking {
+      barrier.await()
       sub.destroy()
-      s ! 3
-      received shouldEqual Seq(1, 2)
-    }
+    })), 10.seconds)
+    assert(!s.hasSubscribers)
+  }
 
-    scenario("Don't receive events after unregistering all subscribers") {
-      val s = Signal(1)
-      s(capture)
-      s ! 2
-      received shouldEqual Seq(1, 2)
+  test("Concurrent updates with incremental values") {
+    incrementalUpdates((s, r) => s {
+      r.add
+    })
+  }
 
-      s.unsubscribeAll()
-      s ! 3
-      received shouldEqual Seq(1, 2)
-    }
+  test("Concurrent updates with incremental values with serial dispatch queue") {
+    val dispatcher = SerialDispatchQueue()
+    incrementalUpdates((s, r) => s.on(dispatcher) {
+      r.add
+    })
+  }
 
-    scenario("Signal mutation") {
-      val s = Signal(42)
-      s(capture)
-      received shouldEqual Seq(42)
-      s.mutate(_ + 1)
-      received shouldEqual Seq(42, 43)
-      s.mutate(_ - 1)
-      received shouldEqual Seq(42, 43, 42)
+  test("Concurrent updates with incremental values and onChanged subscriber") {
+    incrementalUpdates((s, r) => s.onChanged {
+      r.add
+    })
+  }
+
+  test("Concurrent updates with incremental values and onChanged subscriber with serial dispatch queue") {
+    val dispatcher = SerialDispatchQueue()
+    incrementalUpdates((s, r) => s.onChanged.on(dispatcher) {
+      r.add
+    })
+  }
+
+  private def incrementalUpdates(onUpdate: (Signal[Int], ConcurrentLinkedQueue[Int]) => Unit): Unit = {
+    100 times {
+      val signal = Signal(0)
+      val received = new ConcurrentLinkedQueue[Int]()
+
+      onUpdate(signal, received)
+
+      val send = new AtomicInteger(0)
+      val done = new CountDownLatch(10)
+      (1 to 10).foreach(_ => Future {
+        for (_ <- 1 to 100) {
+          val v = send.incrementAndGet()
+          signal.mutate(_ max v)
+        }
+        done.countDown()
+      })
+
+      done.await(DefaultTimeout.toMillis, TimeUnit.MILLISECONDS)
+
+      assertEquals(signal.currentValue.get, send.get())
+
+      val arr = received.asScala.toVector
+      assertEquals(arr, arr.sorted)
     }
   }
 
-  feature("Caching") {
-    scenario("Don't send the same value twice") {
-      val s = Signal(1)
-      s(capture)
-      Seq(1, 2, 2, 1) foreach (s ! _)
-      received shouldEqual Seq(1, 2, 1)
-    }
-
-    scenario("Idempotent signal mutation") {
-      val s = Signal(42)
-      s(capture)
-      received shouldEqual Seq(42)
-      s.mutate(_ + 1 - 1)
-      received shouldEqual Seq(42)
-    }
+  test("Two concurrent dispatches (global event and background execution contexts)") {
+    concurrentDispatches(2, 1000, EventContext.Global, Some(defaultContext), defaultContext)()
   }
 
-  feature("For comprehensions") {
-    scenario("Simple for comprehension") {
-      val s = Signal(0)
-      val s1 = Signal(1)
-      val s2 = Signal(2)
-      val r = for {
-        x <- s
-        y <- Seq(s1, s2)(x)
-      } yield y * 2
-      r(capture)
-      r.currentValue.get shouldEqual 2
-      s ! 1
-      r.currentValue.get shouldEqual 4
-      received shouldEqual Seq(2, 4)
-    }
+  test("Several concurrent dispatches (global event and background execution contexts)") {
+    concurrentDispatches(10, 200, EventContext.Global, Some(defaultContext), defaultContext)()
   }
 
-  feature("Concurrency") {
-    scenario("Many concurrent subscriber changes") {
-      val barrier = new CyclicBarrier(50)
-      val num = new AtomicInteger(0)
-      val s = Signal(0)
-
-      def add(barrier: CyclicBarrier): Future[Subscription] = Future(blocking {
-        barrier.await()
-        s { _ => num.incrementAndGet() }
-      })
-
-      val subs = Await.result(Future.sequence(Seq.fill(50)(add(barrier))), 10.seconds)
-      s.hasSubscribers shouldEqual true
-      num.getAndSet(0) shouldEqual 50
-
-      s ! 42
-      num.getAndSet(0) shouldEqual 50
-
-      val chaosBarrier = new CyclicBarrier(75)
-      val removals = Future.traverse(subs.take(25))(sub => Future(blocking {
-        chaosBarrier.await()
-        sub.destroy()
-      }))
-      val adding = Future.sequence(Seq.fill(25)(add(chaosBarrier)))
-      val sending = Future.traverse((1 to 25).toList)(n => Future(blocking {
-        chaosBarrier.await()
-        s ! n
-      }))
-
-      val moreSubs = Await.result(adding, 10.seconds)
-      Await.result(removals, 10.seconds)
-      Await.result(sending, 10.seconds)
-
-      num.get should be <= 75 * 25
-      num.get should be >= 25 * 25
-      s.hasSubscribers shouldEqual true
-
-      barrier.reset()
-      Await.result(Future.traverse(moreSubs ++ subs.drop(25))(sub => Future(blocking {
-        barrier.await()
-        sub.destroy()
-      })), 10.seconds)
-      s.hasSubscribers shouldEqual false
-    }
-
-    scenario("Concurrent updates with incremental values") {
-      incrementalUpdates((s, r) => s {
-        r.add
-      })
-    }
-
-    scenario("Concurrent updates with incremental values with serial dispatch queue") {
-      val dispatcher = SerialDispatchQueue()
-      incrementalUpdates((s, r) => s.on(dispatcher) {
-        r.add
-      })
-    }
-
-    scenario("Concurrent updates with incremental values and onChanged subscriber") {
-      incrementalUpdates((s, r) => s.onChanged {
-        r.add
-      })
-    }
-
-    scenario("Concurrent updates with incremental values and onChanged subscriber with serial dispatch queue") {
-      val dispatcher = SerialDispatchQueue()
-      incrementalUpdates((s, r) => s.onChanged.on(dispatcher) {
-        r.add
-      })
-    }
-
-    def incrementalUpdates(onUpdate: (Signal[Int], ConcurrentLinkedQueue[Int]) => Unit): Unit = {
-      100 times {
-        val signal = Signal(0)
-        val received = new ConcurrentLinkedQueue[Int]()
-
-        onUpdate(signal, received)
-
-        val send = new AtomicInteger(0)
-        val done = new CountDownLatch(10)
-        (1 to 10).foreach(_ => Future {
-          for (_ <- 1 to 100) {
-            val v = send.incrementAndGet()
-            signal.mutate(_ max v)
-          }
-          done.countDown()
-        })
-
-        done.await(DefaultTimeout.toMillis, TimeUnit.MILLISECONDS)
-
-        signal.currentValue.get shouldEqual send.get()
-
-        val arr = received.asScala.toVector
-        arr shouldEqual arr.sorted
-      }
-    }
-
-    scenario("Two concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(2, 1000, EventContext.Global, Some(defaultContext), defaultContext)()
-    }
-
-    scenario("Several concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(10, 200, EventContext.Global, Some(defaultContext), defaultContext)()
-    }
-
-    scenario("Many concurrent dispatches (global event and background execution contexts)") {
-      concurrentDispatches(100, 200, EventContext.Global, Some(defaultContext), defaultContext)()
-    }
-
-
-    scenario("Two concurrent dispatches (subscriber on UI eventcontext)") {
-      concurrentDispatches(2, 1000, eventContext, Some(defaultContext), defaultContext)()
-    }
-
-    scenario("Several concurrent dispatches (subscriber on UI event context)") {
-      concurrentDispatches(10, 200, eventContext, Some(defaultContext), defaultContext)()
-    }
-
-    scenario("Many concurrent dispatches (subscriber on UI event context)") {
-      concurrentDispatches(100, 100, eventContext, Some(defaultContext), defaultContext)()
-    }
-
-
-    scenario("Several concurrent dispatches (global event context, no source context)") {
-      concurrentDispatches(10, 200, EventContext.Global, None, defaultContext)()
-    }
-
-    scenario("Several concurrent dispatches (subscriber on UI context, no source context)") {
-      concurrentDispatches(10, 200, eventContext, None, defaultContext)()
-    }
-
-
-    scenario("Several concurrent mutations (subscriber on global event context)") {
-      concurrentMutations(10, 200, EventContext.Global, defaultContext)()
-    }
-
-    scenario("Several concurrent mutations (subscriber on UI event context)") {
-      concurrentMutations(10, 200, eventContext, defaultContext)()
-    }
-
+  test("Many concurrent dispatches (global event and background execution contexts)") {
+    concurrentDispatches(100, 200, EventContext.Global, Some(defaultContext), defaultContext)()
   }
 
-  def concurrentDispatches(dispatches: Int, several: Int, eventContext: EventContext, dispatchExecutionContext: Option[ExecutionContext], actualExecutionContext: ExecutionContext)(subscribe: Signal[Int] => (Int => Unit) => Subscription = s => g => s(g)(eventContext)): Unit =
+  test("Two concurrent dispatches (subscriber on UI eventcontext)") {
+    concurrentDispatches(2, 1000, eventContext, Some(defaultContext), defaultContext)()
+  }
+
+  test("Several concurrent dispatches (subscriber on UI event context)") {
+    concurrentDispatches(10, 200, eventContext, Some(defaultContext), defaultContext)()
+  }
+
+  test("Many concurrent dispatches (subscriber on UI event context)") {
+    concurrentDispatches(100, 100, eventContext, Some(defaultContext), defaultContext)()
+  }
+
+  test("Several concurrent dispatches (global event context, no source context)") {
+    concurrentDispatches(10, 200, EventContext.Global, None, defaultContext)()
+  }
+
+  test("Several concurrent dispatches (subscriber on UI context, no source context)") {
+    concurrentDispatches(10, 200, eventContext, None, defaultContext)()
+  }
+
+  test("Several concurrent mutations (subscriber on global event context)") {
+    concurrentMutations(10, 200, EventContext.Global, defaultContext)()
+  }
+
+  test("Several concurrent mutations (subscriber on UI event context)") {
+    concurrentMutations(10, 200, eventContext, defaultContext)()
+  }
+
+  private def concurrentDispatches(dispatches: Int,
+                                   several: Int,
+                                   eventContext: EventContext,
+                                   dispatchExecutionContext: Option[ExecutionContext],
+                                   actualExecutionContext: ExecutionContext
+                                  )(subscribe: Signal[Int] => (Int => Unit) => Subscription = s => g => s(g)(eventContext)): Unit =
     concurrentUpdates(dispatches, several, (s, n) => s.set(Some(n), dispatchExecutionContext), actualExecutionContext, subscribe)
 
-  def concurrentMutations(dispatches: Int, several: Int, eventContext: EventContext, actualExecutionContext: ExecutionContext)(subscribe: Signal[Int] => (Int => Unit) => Subscription = s => g => s(g)(eventContext)): Unit =
-    concurrentUpdates(dispatches, several, (s, n) => s.mutate(_ + n), actualExecutionContext, subscribe, _.currentValue.get shouldEqual 55)
+  private def concurrentMutations(dispatches: Int,
+                                  several: Int,
+                                  eventContext: EventContext,
+                                  actualExecutionContext: ExecutionContext
+                                 )(subscribe: Signal[Int] => (Int => Unit) => Subscription = s => g => s(g)(eventContext)): Unit =
+    concurrentUpdates(dispatches, several, (s, n) => s.mutate(_ + n), actualExecutionContext, subscribe, _.currentValue.get == 55)
 
-  def concurrentUpdates(dispatches: Int, several: Int, f: (SourceSignal[Int], Int) => Unit, actualExecutionContext: ExecutionContext, subscribe: Signal[Int] => (Int => Unit) => Subscription, additionalAssert: Signal[Int] => Unit = _ => ()): Unit =
+  private def concurrentUpdates(dispatches: Int,
+                                several: Int,
+                                f: (SourceSignal[Int], Int) => Unit,
+                                actualExecutionContext: ExecutionContext,
+                                subscribe: Signal[Int] => (Int => Unit) => Subscription,
+                                additionalAssert: Signal[Int] => Boolean = _ => true): Unit =
     several times {
       val signal = Signal(0)
 
@@ -294,7 +308,7 @@ class SignalSpec extends FeatureSpec with Matchers with OptionValues with Before
 
       result(p.future)
 
-      additionalAssert(signal)
-      signal.currentValue.get shouldEqual lastSent
+      assert(additionalAssert(signal))
+      assertEquals(signal.currentValue.get, lastSent)
     }
 }
