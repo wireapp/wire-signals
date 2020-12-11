@@ -332,7 +332,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     super.notifySubscribers(_.changed(currentContext))
 
   /** The current value of the signal.
-    * If the signal reuires some initial work before accessing its value for the first time, it will be done exactly one time.
+    * If the signal requires some initial work before accessing its value for the first time, it will be done exactly one time.
     * Subsequently, this method will simply return the current value.
     *
     * Please note that this will return an option of the value type. You may get a `None` if the signal is not initialized yet
@@ -341,7 +341,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     *
     * @return The current value of the signal.
     */
-  final def currentValue: Option[V] = {
+  @inline final def currentValue: Option[V] = {
     if (!wired) disableAutowiring()
     value
   }
@@ -350,11 +350,10 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     * The future will finish immediately with the current value of the signal if the value is already set. If the signal is empty,
     * the future will finish when the next update sets the value.
     *
-    * @todo Maybe it should be renamed to `future`?
-    *
+
     * @return The current value of the signal or the value it will be set to in the next update.
     */
-  final def head: Future[V] = currentValue match {
+  final def future: Future[V] = currentValue match {
     case Some(v) => Future.successful(v)
     case None =>
       val p = Promise[V]()
@@ -367,8 +366,8 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
       p.future
   }
 
-  /** An alias to the `head` method. */
-  @inline final def future: Future[V] = head
+  /** An alias to the `future` method. */
+  @inline @deprecated("Use .future instead", "0.4") final def head: Future[V] = future
 
   /** An event stream where each event is a tuple of the old and the new value of the signal.
     * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream,
@@ -453,7 +452,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     *
     * @return A new future which finishes either immediately or as soon as the value of the original signal is true.
     */
-  final def onTrue(implicit ev: V =:= Boolean): Future[Unit] = collect { case true => () }.head
+  final def onTrue(implicit ev: V =:= Boolean): Future[Unit] = collect { case true => () }.future
 
   /** Assuming that the value of the signal can be interpreted as a boolean, this method returns a future
     * of type `Unit` which will finish with success when the value of the original signal is false.
@@ -465,7 +464,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     *
     * @return A new future which finishes either immediately or as soon as the value of the original signal is false.
     */
-  final def onFalse(implicit ev: V =:= Boolean): Future[Unit] = collect { case false => () }.head
+  final def onFalse(implicit ev: V =:= Boolean): Future[Unit] = collect { case false => () }.future
 
   /** Creates a new signal of values of the type `Z` by applying a partial function which maps the original value of the type `V`
     * to a value of the type `Z`. If the partial function doesn't work for the current value, the new signal will become empty

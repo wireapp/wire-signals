@@ -17,50 +17,60 @@
  */
 package com.wire.signals
 
-import org.scalatest._
-import org.threeten.bp.Instant, Instant.now
+import org.threeten.bp.Instant
+import Instant.now
 
 import scala.concurrent.duration._
 import com.wire.signals.testutils._
-import com.wire.signals.testutils.Matchers._
 
-class ClockSignalSpec extends FeatureSpec with Matchers with OptionValues {
+sealed trait Roughly[V] {
+  type Tolerance
+  def roughlyEquals(other: V)(implicit tolerance: Tolerance): Boolean
+}
 
-  implicit val tolerance: Tolerance = 100.millis.tolerance
+object Roughly extends {
+  implicit class RoughlyInstant(val instant: Instant) extends Roughly[Instant] {
+    override type Tolerance = Long
+    override def roughlyEquals(other: Instant)(implicit tolerance: Long): Boolean =
+      this.instant.toEpochMilli >= other.toEpochMilli - tolerance &&
+        this.instant.toEpochMilli <= other.toEpochMilli + tolerance
+  }
+}
 
-  scenario("Subscribe, unsubscribe, re-subscribe") {
+class ClockSignalSpec extends munit.FunSuite {
+  import Roughly._
+  implicit val instantTolerance: Long = 100.millis.toMillis
+
+  @inline def sleep(duration: Duration): Unit = Thread.sleep(duration.toMillis)
+
+  test("Subscribe, unsubscribe, re-subscribe") {
     val signal = ClockSignal(1.millis)
 
-    val v1 = signal.value
-    v1 should beRoughly(now)
+    val v1 = result(signal.future)
+    assert(v1.roughlyEquals(now()))
 
-    idle(200.millis)
-    signal.value shouldEqual v1
+    sleep(200.millis)
+    assert(result(signal.future).roughlyEquals(v1.plusMillis(200)))
 
     val sub1 = signal.sink
-    sub1.current should beRoughly(now)
+    assert(sub1.current.forall(_.roughlyEquals(now())))
 
-    idle(200.millis)
-    signal.value should beRoughly(now)
-    sub1.current should beRoughly(now)
+    sub1.unsubscribe()
 
-    sub1.unsubscribe
+    val v2 = result(signal.future)
+    val Some(v3) = sub1.current
 
-    val v2 = signal.value
-    val v3 = sub1.current
+    sleep(200.millis)
 
-    idle(200.millis)
-
-    signal.value shouldEqual v2
-    sub1.current shouldEqual v3
+    assert(result(signal.future).roughlyEquals(v2.plusMillis(200)))
+    assert(sub1.current.forall(_.roughlyEquals(v3)))
 
     val sub2 = signal.sink
-    sub1.current shouldEqual v3
-    sub2.current should beRoughly(now)
+    assert(sub2.current.forall(_.roughlyEquals(now())))
 
-    idle(200.millis)
-    signal.value should beRoughly(now)
-    sub1.current shouldEqual v3
-    sub2.current should beRoughly(now)
+    sleep(200.millis)
+    assert(result(signal.future).roughlyEquals(now()))
+    assert(sub1.current.forall(_.roughlyEquals(v3)))
+    assert(sub2.current.forall(_.roughlyEquals(now())))
   }
 }
