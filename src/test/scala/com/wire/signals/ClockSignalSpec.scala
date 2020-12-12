@@ -23,20 +23,6 @@ import Instant.now
 import scala.concurrent.duration._
 import com.wire.signals.testutils._
 
-sealed trait Roughly[V] {
-  type Tolerance
-  def roughlyEquals(other: V)(implicit tolerance: Tolerance): Boolean
-}
-
-object Roughly extends {
-  implicit class RoughlyInstant(val instant: Instant) extends Roughly[Instant] {
-    override type Tolerance = Long
-    override def roughlyEquals(other: Instant)(implicit tolerance: Long): Boolean =
-      this.instant.toEpochMilli >= other.toEpochMilli - tolerance &&
-        this.instant.toEpochMilli <= other.toEpochMilli + tolerance
-  }
-}
-
 class ClockSignalSpec extends munit.FunSuite {
   import Roughly._
   implicit val instantTolerance: Long = 100.millis.toMillis
