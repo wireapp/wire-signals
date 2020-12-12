@@ -17,56 +17,53 @@
  */
 package com.wire.signals
 
-import org.scalatest._
 import Threading._
 import testutils._
 
 import scala.concurrent.Promise
 
-class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
-
-  feature("Aggregating incremental updates to an initial value") {
-    scenario("new aggregator, no subscribers")(withAggregator { env =>
+class AggregatingSignalSpec extends munit.FunSuite {
+    test("new aggregator, no subscribers")(withAggregator { env =>
       import env._
-      aggregator.value shouldBe None
+      assertEquals(aggregator.value, None)
       finishLoading()
       publisher ! "meep"
-      aggregator.value shouldBe None
+      assertEquals(aggregator.value, None)
     })
 
-    scenario("one subscriber")(withAggregator { env =>
+    test("one subscriber")(withAggregator { env =>
       import env._
       val sub = subscribe()
-      sub.value shouldBe None
-      aggregator.value shouldBe None
+      assertEquals(sub.value, None)
+      assertEquals(aggregator.value, None)
 
       finishLoading()
 
       withDelay {
-        sub.value.value shouldBe Seq(42)
+        assertEquals(sub.value.get, Seq(42))
       }
-      aggregator.value.value shouldBe Seq(42)
+      assertEquals(result(aggregator.future), Seq(42))
 
       publisher ! "meep"
 
       withDelay {
-        sub.value.value shouldBe Seq(42, 4)
+        assertEquals(sub.value.get, Seq(42, 4))
       }
-      aggregator.value.value shouldBe Seq(42, 4)
+      assertEquals(result(aggregator.future), Seq(42, 4))
 
       aggregator.unsubscribeAll()
 
       publisher ! "yay"
 
-      sub.value.value shouldBe Seq(42, 4)
-      aggregator.value.value shouldBe Seq(42, 4)
+      assertEquals(sub.value.get, Seq(42, 4))
+      assertEquals(result(aggregator.future), Seq(42, 4))
     })
 
-    scenario("events while subscribed but still loading")(withAggregator { env =>
+    test("events while subscribed but still loading")(withAggregator { env =>
       import env._
       val sub = subscribe()
-      sub.value shouldBe None
-      aggregator.value shouldBe None
+      assertEquals(sub.value, None)
+      assertEquals(aggregator.value, None)
 
       publisher ! "meep"
       publisher ! "moop"
@@ -74,20 +71,20 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
 
       Thread.sleep(333L)
 
-      sub.value shouldBe None
-      aggregator.value shouldBe None
+      assertEquals(sub.value, None)
+      assertEquals(aggregator.value, None)
 
       publisher ! "!"
       finishLoading()
       publisher ! "supercalifragilisticexpialidocious"
 
       withDelay {
-        sub.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
-        aggregator.value.value shouldBe Seq(42, 4, 4, 3, 1, 34)
+        assertEquals(sub.value.get, Seq(42, 4, 4, 3, 1, 34))
+        assertEquals(result(aggregator.future), Seq(42, 4, 4, 3, 1, 34))
       }
     })
 
-    scenario("reload on re-wire")(withAggregator { env =>
+    test("reload on re-wire")(withAggregator { env =>
       import env._
       val sub = subscribe()
       finishLoading()
@@ -97,49 +94,54 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
       publisher ! "publish"
 
       withDelay {
-        sub.value.value shouldBe Seq(42, 3, 4, 7)
+        assertEquals(sub.value.get, Seq(42, 3, 4, 7))
       }
       Thread.sleep(333L)
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7)
+      assertEquals(result(aggregator.future), Seq(42, 3, 4, 7))
 
       aggregator.unsubscribeAll()
 
-      sub.value.value shouldBe Seq(42, 3, 4, 7)
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7)
+      // still holds to the last computed value after unsubscribing
+      assertEquals(sub.value.get, Seq(42, 3, 4, 7))
+      assertEquals(result(aggregator.future), Seq(42, 3, 4, 7))
 
+      // triggers reload
       publisher ! "publisher"
 
-      sub.value.value shouldBe Seq(42, 3, 4, 7)
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7)
+      Thread.sleep(333L)
+
+      // still the old value
+      assertEquals(sub.value.get, Seq(42, 3, 4, 7))
+      // a new value after reload
+      assertEquals(result(aggregator.future), Seq(42, 9))
 
       promise = Promise[Seq[Int]]
       val sub2 = subscribe()
 
-      sub2.value.value shouldBe Seq(42, 3, 4, 7)
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7)
+      assertEquals(sub2.value.get,Seq(42, 9))
+      assertEquals(result(aggregator.future), Seq(42, 9))
 
       publisher ! "much amaze"
 
-      sub2.value.value shouldBe Seq(42, 3, 4, 7)
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7)
+      assertEquals(sub2.value.get, Seq(42, 9, 10))
+      assertEquals(result(aggregator.future), Seq(42, 9, 10))
 
       finishLoading(Seq(42, 3, 4, 7, 9))
 
       withDelay {
-        sub2.value.value shouldBe Seq(42, 3, 4, 7, 9, 10)
+        assertEquals(sub2.value.get, Seq(42, 3, 4, 7, 9, 10))
       }
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7, 9, 10)
-      sub.value.value shouldBe Seq(42, 3, 4, 7)
+      assertEquals(result(aggregator.future), Seq(42, 9, 10))
+      assertEquals(sub.value.get, Seq(42, 3, 4, 7))
 
       publisher ! "much"
       publisher ! "amaze"
 
       withDelay {
-        sub2.value.value shouldBe Seq(42, 3, 4, 7, 9, 10, 4, 5)
+        assertEquals(sub2.value.get, Seq(42, 3, 4, 7, 9, 10, 4, 5))
       }
-      aggregator.value.value shouldBe Seq(42, 3, 4, 7, 9, 10, 4, 5)
+      assertEquals(result(aggregator.future), Seq(42, 9, 10, 4, 5))
     })
-  }
 
   class Fixture {
     var promise: Promise[Seq[Int]] = Promise[Seq[Int]]
@@ -149,9 +151,13 @@ class AggregatingSignalSpec extends FeatureSpec with Matchers with OptionValues 
 
     private def loader = promise.future
 
-    val aggregator = new AggregatingSignal[String, Seq[Int]](loader, publisher, (b, a) => b :+ a.length)
+    val aggregator = new AggregatingSignal[String, Seq[Int]](
+      loader,
+      publisher,
+      (b, a) => b :+ a.length
+    )
 
-    case class Sub() {
+    final case class Sub() {
       @volatile var value: Option[Seq[Int]] = None
     }
 
