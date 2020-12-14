@@ -17,16 +17,14 @@
  */
 package com.wire.signals
 
-import org.scalatest.{FeatureSpec, Matchers}
 import testutils._
 
-class ButtonSignalSpec extends FeatureSpec with Matchers {
+class ButtonSignalSpec extends munit.FunSuite {
 
-  scenario("Simple button press") {
+  test("Simple button press") {
 
     val service = Signal.const("service")
     val buttonState = Signal(false)
-
 
     val button = ButtonSignal(service, buttonState) {
       (_, state) => {
@@ -35,13 +33,13 @@ class ButtonSignalSpec extends FeatureSpec with Matchers {
     }.disableAutowiring()
 
     button.click()
-    result(button.filter(_ == true).head)
+    result(button.filter(_ == true).future)
 
     button.click()
-    result(button.filter(_ == false).head)
+    result(button.filter(_ == false).future)
   }
 
-  scenario("OnClick should not be performed on unwired signal") {
+  test("OnClick should not be performed on unwired signal") {
     val service = Signal.const("service")
     val buttonState = Signal(false)
 
@@ -52,7 +50,7 @@ class ButtonSignalSpec extends FeatureSpec with Matchers {
     }
 
     button.click()
-    result(button.filter(_ == false).head)
+    result(button.filter(_ == false).future)
   }
 
 }

@@ -300,12 +300,11 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     }
 
     new CancellableFuture(p) {
-      override def cancel(): Boolean = {
+      override def cancel(): Boolean =
         if (super.cancel()) {
           Future(cancelFunc.foreach(_ ()))(executor)
           true
         } else false
-      }
     }
   }
 
@@ -340,7 +339,7 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     val p = Promise[S]()
     @volatile var cancelFunc = Option(() => self.cancel())
 
-    self.future onComplete { res =>
+    self.future.onComplete { res =>
       cancelFunc = None
       if (!p.isCompleted) res match {
         case f: Failure[_] => p.tryComplete(f.asInstanceOf[Failure[S]])
@@ -360,12 +359,11 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     }
 
     new CancellableFuture(p) {
-      override def cancel(): Boolean = {
+      override def cancel(): Boolean =
         if (super.cancel()) {
           Future(cancelFunc.foreach(_()))(executor)
           true
         } else false
-      }
     }
   }
 
@@ -404,12 +402,11 @@ class CancellableFuture[+T](promise: Promise[T]) extends Awaitable[T] { self =>
     }
 
     new CancellableFuture(p) {
-      override def cancel(): Boolean = {
+      override def cancel(): Boolean =
         if (super.cancel()) {
           Future(cancelFunc.foreach(_ ()))(executor)
           true
         } else false
-      }
     }
   }
 

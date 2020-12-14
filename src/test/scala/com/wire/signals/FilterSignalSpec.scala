@@ -17,58 +17,57 @@
  */
 package com.wire.signals
 
-import org.scalatest._
+import com.wire.signals.testutils.result
 
-class FilterSignalSpec extends FeatureSpec with Matchers with OptionValues with BeforeAndAfter {
+class FilterSignalSpec extends munit.FunSuite {
 
-  feature("Filtering signals") {
-    scenario("Value of a filtered signal") {
-      val source = Signal(1)
-      val chain = source.filter(_ % 2 == 0)
-      chain.currentValue shouldBe empty
-      source ! 2
-      chain.currentValue.value shouldEqual 2
-      source ! 3
-      chain.currentValue shouldEqual None
-      source ! 4
-      chain.currentValue.value shouldEqual 4
-    }
+  test("Value of a filtered signal") {
+    val source = Signal(1)
+    val chain = source.filter(_ % 2 == 0)
+    assertEquals(chain.currentValue, None)
+    source ! 2
+    assertEquals(result(chain.future), 2)
+    source ! 3
+    assertEquals(chain.currentValue, None)
+    source ! 4
+    assertEquals(result(chain.future), 4)
 
-    scenario("Subscribing to a filtered signal") {
-      val source = Signal(1)
-      val chain = source.filter(_ % 2 == 0)
-      val fan = Follower(chain).subscribed
-      fan.lastReceived shouldBe empty
-      source ! 2
-      fan.received shouldEqual Seq(2)
-      source ! 3
-      fan.received shouldEqual Seq(2)
-      chain.unsubscribeAll()
-      fan.received shouldEqual Seq(2)
-      fan.subscribed
-      fan.received shouldEqual Seq(2)
-      chain.unsubscribeAll()
-      source ! 4
-      fan.received shouldEqual Seq(2)
-      fan.subscribed
-      fan.received shouldEqual Seq(2, 4)
-    }
+  }
 
-    scenario("Possibly stale value after re-wiring") {
-      val source = Signal(1)
-      val chain = source.filter(_ % 2 == 0).map(identity)
-      val fan = Follower(chain).subscribed
-      source ! 2
-      fan.received shouldEqual Seq(2)
-      chain.unsubscribeAll()
+  test("Subscribing to a filtered signal") {
+    val source = Signal(1)
+    val chain = source.filter(_ % 2 == 0)
+    val fan = Follower(chain).subscribed
+    assertEquals(fan.lastReceived, None)
+    source ! 2
+    assertEquals(fan.received, Vector(2))
+    source ! 3
+    assertEquals(fan.received, Vector(2))
+    chain.unsubscribeAll()
+    assertEquals(fan.received, Vector(2))
+    fan.subscribed
+    assertEquals(fan.received, Vector(2))
+    chain.unsubscribeAll()
+    source ! 4
+    assertEquals(fan.received, Vector(2))
+    fan.subscribed
+    assertEquals(fan.received, Vector(2, 4))
+  }
 
-      (3 to 7) foreach source.!
+  test("Possibly stale value after re-wiring") {
+    val source = Signal(1)
+    val chain = source.filter(_ % 2 == 0).map(identity)
+    val fan = Follower(chain).subscribed
+    source ! 2
+    assertEquals(fan.received, Vector(2))
+    chain.unsubscribeAll()
 
-      chain.currentValue shouldEqual None
-      fan.subscribed
-      fan.received shouldEqual Seq(2)
-      source ! 8
-      fan.received shouldEqual Seq(2, 8)
-    }
+    (3 to 7) foreach source.!
+
+    assertEquals(chain.currentValue, None)
+    fan.subscribed
+    assertEquals(fan.received, Vector(2))
+    source ! 8
+    assertEquals(fan.received, Vector(2, 8))
   }
 }

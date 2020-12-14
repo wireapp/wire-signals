@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
 import com.wire.signals.utils.returning
 import testutils._
 
-case class Follower[A](signal: Signal[A]) {
+final case class Follower[A](signal: Signal[A]) {
   private val receivedValues = new AtomicReference(Vector.empty[A])
 
   def received: Vector[A] = receivedValues.get

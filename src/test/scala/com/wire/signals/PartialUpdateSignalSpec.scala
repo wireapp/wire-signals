@@ -17,14 +17,14 @@
  */
 package com.wire.signals
 
-import org.scalatest.{FeatureSpec, Matchers}
+import com.wire.signals.testutils.andThen
 
-class PartialUpdateSignalSpec extends FeatureSpec with Matchers {
+class PartialUpdateSignalSpec extends munit.FunSuite {
 
   import EventContext.Implicits.global
   import PartialUpdateSignalSpec._
 
-  scenario("Basic") {
+  test("Basic") {
 
     val original = Signal(Data(0, 0))
 
@@ -43,29 +43,26 @@ class PartialUpdateSignalSpec extends FeatureSpec with Matchers {
 
     original ! Data(2, 3)
 
-    updates shouldEqual Seq(Data(0, 0), Data(1, 2), Data(2, 3))
+    andThen()
+
+    assertEquals(updates, Seq(Data(0, 0), Data(1, 2), Data(2, 3)))
   }
 
-  scenario("New subscribers get latest value even if the select doesn't match") {
-
+  test("New subscribers get latest value even if the select doesn't match") {
     val original = Signal(Data(0, 0))
 
     original.onPartialUpdate(_.value1) { d =>
-      d shouldEqual Data(0, 0)
+      assertEquals(d, Data(0, 0))
     }
 
     original ! Data(0, 1)
 
     original.onPartialUpdate(_.value1) { d =>
-      d shouldEqual Data(0, 1)
+      assertEquals(d, Data(0, 1))
     }
   }
-
-
 }
 
 object PartialUpdateSignalSpec {
-
-  case class Data(value1: Int, value2: Int)
-
+  final case class Data(value1: Int, value2: Int)
 }

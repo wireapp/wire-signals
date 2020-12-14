@@ -17,49 +17,44 @@
  */
 package com.wire.signals
 
-import org.scalatest._
-
-class EventStreamWithAuxSignalSpec extends FeatureSpec with Matchers with OptionValues {
-
+class EventStreamWithAuxSignalSpec extends munit.FunSuite {
   private lazy val aux = new SourceSignal[Int]
   private lazy val e = new SourceStream[String]()
-
   private lazy val r = new EventStreamWithAuxSignal(e, aux)
 
   private var events = List.empty[(String, Option[Int])]
 
-  scenario("Subscribe, send stuff, unsubscribe, send more stuff") {
-
+  test("Subscribe, send stuff, unsubscribe, send more stuff") {
     val sub = r { r =>
       events = r :: events
     }(EventContext.Global)
 
-    events shouldEqual Nil
+    assertEquals(events, List.empty)
 
     e ! "meep"
-    events shouldEqual List(("meep", None))
+    assertEquals(events, List(("meep", None)))
 
     aux ! 1
-    events shouldEqual List(("meep", None))
+    assertEquals(events, List(("meep", None)))
 
     e ! "foo"
-    events shouldEqual List(("foo", Some(1)), ("meep", None))
+    assertEquals(events, List(("foo", Some(1)), ("meep", None)))
 
     e ! "meep"
-    events shouldEqual List(("meep", Some(1)), ("foo", Some(1)), ("meep", None))
+    assertEquals(events, List(("meep", Some(1)), ("foo", Some(1)), ("meep", None)))
 
     aux ! 2
-    events should have size 3
+    assertEquals(events.size, 3)
 
     e ! "meep"
-    events should have size 4
-    events.head shouldEqual("meep", Some(2))
+    assertEquals(events.size, 4)
+    assertEquals(events.head, ("meep", Some(2)))
 
     sub.unsubscribe()
 
     e ! "foo"
     aux ! 3
 
-    events should have size 4
+    assertEquals(events.size, 4)
   }
 }

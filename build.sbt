@@ -6,7 +6,7 @@ lazy val scala211 = "2.11.12"
 lazy val supportedScalaVersions = List(scala213, scala212, scala211)
 
 ThisBuild / organization := "com.wire"
-ThisBuild / scalaVersion := scala212
+ThisBuild / scalaVersion := scala213
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
@@ -46,19 +46,21 @@ publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
 
-Test / scalaVersion := scala212
+Test / scalaVersion := scala213
 
 lazy val root = (project in file("."))
   .settings(
     name := "wire-signals",
     crossScalaVersions := supportedScalaVersions,
     libraryDependencies ++= Seq(
-      "org.threeten"                  %  "threetenbp"            % "1.4.4"            % Provided,
+      "org.threeten" %  "threetenbp" % "1.4.4" % Provided,
 
       //Test dependencies
-      "org.scalatest"                 %% "scalatest"             % "3.0.9"            % Test
+      "org.scalameta" %% "munit" % "0.7.19" % Test
     )
   )
+
+testFrameworks += new TestFramework("munit.Framework")
 
 
 

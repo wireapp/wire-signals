@@ -1,17 +1,35 @@
 package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicReference
-
 import com.wire.signals.utils._
-import org.scalatest.Matchers.fail
 import org.threeten.bp.{Duration, Instant}
 
+import java.util.Random
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.annotation.tailrec
 import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Try}
 
 package object testutils {
+  sealed trait Roughly[V] {
+    type Tolerance
+    def roughlyEquals(other: V)(implicit tolerance: Tolerance): Boolean
+  }
+
+  object Roughly extends {
+    implicit class RoughlyInstant(val instant: Instant) extends Roughly[Instant] {
+      override type Tolerance = Long
+      override def roughlyEquals(other: Instant)(implicit tolerance: Long): Boolean =
+        this.instant.toEpochMilli >= other.toEpochMilli - tolerance &&
+          this.instant.toEpochMilli <= other.toEpochMilli + tolerance
+    }
+  }
+
+  private val localRandom = new ThreadLocal[Random] {
+    override def initialValue: Random = new Random
+  }
+
+  def random: Random = localRandom.get
 
   implicit class SignalToSink[A](val signal: Signal[A]) extends AnyVal {
     def sink: SignalSink[A] = returning(new SignalSink[A])(_.subscribe(signal)(EventContext.Global))
@@ -72,11 +90,12 @@ package object testutils {
     * Very useful for checking that something DOESN'T happen (e.g., ensure that a signal doesn't get updated after
     * performing a series of actions)
     */
-  def awaitAllTasks(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue) = {
-    if (!tasksCompletedAfterWait) fail(new TimeoutException(s"Background tasks didn't complete in ${timeout.toSeconds} seconds"))
+  def awaitAllTasks(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue): Unit = {
+    if (!tasksCompletedAfterWait)
+      throw new TimeoutException(s"Background tasks didn't complete in ${timeout.toSeconds} seconds")
   }
 
-  def tasksRemaining(implicit dq: DispatchQueue) = dq.hasRemainingTasks
+  def tasksRemaining(implicit dq: DispatchQueue): Boolean = dq.hasRemainingTasks
 
   private def tasksCompletedAfterWait(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue) = {
     val start = Instant.now
@@ -84,4 +103,6 @@ package object testutils {
     while(tasksRemaining && Instant.now().isBefore(before)) Thread.sleep(10)
     !tasksRemaining
   }
+
+  def andThen(): Unit = Thread.sleep(1)
 }
