@@ -47,7 +47,6 @@ class PartialUpdateSignalSpec extends FeatureSpec with Matchers {
   }
 
   scenario("New subscribers get latest value even if the select doesn't match") {
-
     val original = Signal(Data(0, 0))
 
     original.onPartialUpdate(_.value1) { d =>
@@ -60,12 +59,8 @@ class PartialUpdateSignalSpec extends FeatureSpec with Matchers {
       d shouldEqual Data(0, 1)
     }
   }
-
-
 }
 
 object PartialUpdateSignalSpec {
-
-  case class Data(value1: Int, value2: Int)
-
+  final case class Data(value1: Int, value2: Int)
 }

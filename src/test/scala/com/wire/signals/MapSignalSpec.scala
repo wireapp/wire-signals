@@ -17,87 +17,84 @@
  */
 package com.wire.signals
 
-import org.scalatest._
+import com.wire.signals.testutils.andThen
 
-class MapSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
+class MapSignalSpec extends munit.FunSuite {
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
-  before {
-    received = Seq[Int]()
+  override def beforeEach(context: BeforeEach): Unit = {
+    received = Seq.empty[Int]
   }
 
-  feature("Basic mapping") {
-    scenario("Normal mapping") {
-      val s = Signal(1)
-      val m = s map (_ * 2)
-      m(capture)
+  test("Normal mapping") {
+    val s = Signal(1)
+    val m = s map (_ * 2)
+    m(capture)
 
-      Seq(2, 3, 1) foreach (s ! _)
-      received shouldEqual Seq(2, 4, 6, 2)
-    }
-
-    scenario("Mapping nulls") {
-      @volatile var vv: Option[String] = Some("invalid")
-      val s = Signal("start")
-      val m = s map (Option(_))
-      m {
-        vv = _
-      }
-      vv shouldEqual Some("start")
-      s ! "meep"
-      vv shouldEqual Some("meep")
-      s ! null
-      vv shouldEqual None
-      s ! "moo"
-      vv shouldEqual Some("moo")
-    }
-
-    scenario("Chained mapping") {
-      val s = Signal(1)
-      val m = s map (_ * 2) map (_ * 3)
-      m(capture)
-      Seq(2, 3, 1) foreach (s ! _)
-      received shouldEqual Seq(6, 12, 18, 6)
-    }
+    Seq(2, 3, 1) foreach (s ! _)
+    assertEquals(received, Seq(2, 4, 6, 2))
   }
 
-  feature("Subscriber lifecycle") {
-    scenario("No subscribers will be left behind") {
-      val s = Signal(1)
-      val f = s map (_ * 2)
-      val sub = f(capture)
-      Seq(2, 3) foreach (s ! _)
-      s.hasSubscribers shouldBe true
-      f.hasSubscribers shouldBe true
-      sub.destroy()
-      s.hasSubscribers shouldBe false
-      f.hasSubscribers shouldBe false
-      s ! 4
-      received shouldEqual Seq(2, 4, 6)
-    }
+  test("Mapping nulls") {
+    @volatile var vv: Option[String] = Some("invalid")
+    val s = Signal("start")
+    val m = s.map(Option(_))
+    m.foreach { vv = _ }
+    andThen()
+    assertEquals(vv, Some("start"))
+    s ! "meep"
+    andThen()
+    assertEquals(vv, Some("meep"))
+    s ! null
+    andThen()
+    assertEquals(vv, None)
+    s ! "moo"
+    andThen()
+    assertEquals(vv, Some("moo"))
   }
 
-  feature("Auto-wiring") {
-    scenario("wire and un-wire mapped signal wrapper") {
-      lazy val s1 = new IntSignal(0)
-      lazy val s = s1 map { _ => 1 }
-
-      s1.isWired shouldBe false
-
-      val o = s { _ => () }
-
-      s1.isWired shouldBe true
-
-      o.disable()
-
-      s1.isWired shouldBe false
-
-      o.enable()
-      s1.isWired shouldBe true
-
-      o.destroy()
-      s1.isWired shouldBe false
-    }
+  test("Chained mapping") {
+    val s = Signal(1)
+    val m = s.map(_ * 2).map(_ * 3)
+    m(capture)
+    Seq(2, 3, 1).foreach(s ! _)
+    assertEquals(received, Seq(6, 12, 18, 6))
   }
+
+  test("No subscribers will be left behind") {
+    val s = Signal(1)
+    val f = s map (_ * 2)
+    val sub = f(capture)
+    Seq(2, 3) foreach (s ! _)
+    assert(s.hasSubscribers)
+    assert(f.hasSubscribers)
+    sub.destroy()
+    assert(!s.hasSubscribers)
+    assert(!f.hasSubscribers)
+    s ! 4
+    assertEquals(received, Seq(2, 4, 6))
+  }
+
+  test("wire and un-wire mapped signal wrapper") {
+    lazy val s1 = new IntSignal(0)
+    lazy val s = s1.map { _ => 1 }
+
+    assert(!s1.isWired)
+
+    val o = s { _ => () }
+
+    assert(s1.isWired)
+
+    o.disable()
+
+    assert(!s1.isWired)
+
+    o.enable()
+    assert(s1.isWired)
+
+    o.destroy()
+    assert(!s1.isWired)
+  }
+
 }
