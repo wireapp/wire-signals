@@ -20,14 +20,14 @@ object RefreshingSignal {
     * @tparam V The value type of the signal and the result of the `loader` cancellable future.
     * @return A new refreshing signal with the value of the type `V`.
     */
-  def apply[V](loader: => CancellableFuture[V], refreshStream: EventStream[_])(implicit ec: ExecutionContext = Threading.defaultContext): RefreshingSignal[V] =
+  def apply[V](loader: () => CancellableFuture[V], refreshStream: EventStream[_])(implicit ec: ExecutionContext = Threading.defaultContext): RefreshingSignal[V] =
     new RefreshingSignal(loader, refreshStream)(ec)
 
   /** A version of the `apply` method where the loader is a regular Scala future. It will be wrapped in a cancellable future
     * on the first execution.
     */
   def from[V](loader: => Future[V], refreshStream: EventStream[_])(implicit ec: ExecutionContext = Threading.defaultContext): RefreshingSignal[V] =
-    new RefreshingSignal(CancellableFuture.lift(loader), refreshStream)(ec)
+    new RefreshingSignal(() => CancellableFuture.lift(loader), refreshStream)(ec)
 }
 
 /** A signal which initializes its value by executing the `loader` cancellable future and then updates the value the same way
@@ -51,7 +51,7 @@ object RefreshingSignal {
   * @param ec The execution context in which the `loader` is executed.
   * @tparam V The value type of the signal and the result of the `loader` cancellable future.
   */
-class RefreshingSignal[V](loader: => CancellableFuture[V], refreshStream: EventStream[_])
+class RefreshingSignal[V](loader: () => CancellableFuture[V], refreshStream: EventStream[_])
                          (implicit ec: ExecutionContext = Threading.defaultContext)
   extends Signal[V] {
   @volatile private var loadFuture = CancellableFuture.cancelled[Unit]()
@@ -62,7 +62,7 @@ class RefreshingSignal[V](loader: => CancellableFuture[V], refreshStream: EventS
     val p = Promise[Unit]()
     val thisReload = CancellableFuture.lift(p.future)
     loadFuture = thisReload
-    loader.onComplete {
+    loader().onComplete {
       case Success(v) if loadFuture == thisReload =>
         p.success(set(Some(v), Some(ec)))
       case Failure(ex) if loadFuture == thisReload =>

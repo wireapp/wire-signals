@@ -100,7 +100,7 @@ class EventStreamSpec extends munit.FunSuite {
 
     promise.failure(new IllegalArgumentException)
 
-    assert(testutils.tryResult(resPromise.future).isFailure)
+    assert(testutils.tryResult(resPromise.future)(1 seconds).isFailure)
   }
 
   test("emit an event after delay by wrapping a cancellable future") {

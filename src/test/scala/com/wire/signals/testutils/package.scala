@@ -104,5 +104,5 @@ package object testutils {
     !tasksRemaining
   }
 
-  def andThen(): Unit = Thread.sleep(1)
+  def andThen(millis: Long = 1): Unit = Thread.sleep(millis)
 }

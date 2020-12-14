@@ -42,7 +42,7 @@ object AggregatingSignal {
     * @tparam V The type of the value held in the signal and the result of the `loader` execution.
     * @return A new aggregating signal with the value type `V`.
     */
-  def apply[E, V](loader: => Future[V], sourceStream: EventStream[E], updater: (V, E) => V)
+  def apply[E, V](loader: () => Future[V], sourceStream: EventStream[E], updater: (V, E) => V)
                  (implicit ec: ExecutionContext = Threading.defaultContext): AggregatingSignal[E, V]
     = new AggregatingSignal(loader, sourceStream, updater)
 }
@@ -75,7 +75,7 @@ object AggregatingSignal {
   * @tparam E The type of the update events.
   * @tparam V The type of the value held in the signal and the result of the `loader` execution.
   */
-class AggregatingSignal[E, V](loader: => Future[V], sourceStream: EventStream[E], updater: (V, E) => V)
+class AggregatingSignal[E, V](loader: () => Future[V], sourceStream: EventStream[E], updater: (V, E) => V)
                              (implicit ec: ExecutionContext = Threading.defaultContext)
   extends Signal[V] with EventSubscriber[E] { self =>
   private object valueMonitor
@@ -90,7 +90,7 @@ class AggregatingSignal[E, V](loader: => Future[V], sourceStream: EventStream[E]
       stash :+= event
   }
 
-  private def startLoading(id: Int): Unit = loader.onComplete {
+  private def startLoading(id: Int): Unit = loader().onComplete {
     case Success(s) if loadId.intValue() == id => valueMonitor.synchronized {
       self.set(Some(stash.foldLeft(s)(updater)), Some(ec))
       loadId.compareAndSet(id, 0)
