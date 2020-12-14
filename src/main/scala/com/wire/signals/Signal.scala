@@ -337,7 +337,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     *
     * Please note that this will return an option of the value type. You may get a `None` if the signal is not initialized yet
     * or if it was temporarily cleared and awaits another update. Usually, it's safer to use `head` or `future` and work with
-    * a future of the value type instead.
+    * a future of the value type instead. And if you need to know if the signal is currently empty, use `empty`.
     *
     * @return The current value of the signal.
     */
@@ -345,6 +345,16 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     if (!wired) disableAutowiring()
     value
   }
+
+  /** Checks if the signal is currently empty.
+    * A signal is usually empty just after creation, if it was not initialized with a value, and it still waits
+    * for the first value to be sent to it. Or it can be a constant `Signal.empty[V]`.
+    *
+    * @see [[Signal.empty]]
+    *
+    * @return true if the signal is empty, false otherwise.
+    */
+  @inline final def empty: Boolean = currentValue.isEmpty
 
   /** A future with the current value of the signal.
     * The future will finish immediately with the current value of the signal if the value is already set. If the signal is empty,
