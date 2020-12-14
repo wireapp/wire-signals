@@ -104,7 +104,7 @@ class EventStreamSpec extends munit.FunSuite {
   }
 
   test("emit an event after delay by wrapping a cancellable future") {
-    val promise = Promise[Long]
+    val promise = Promise[Long]()
     val t = System.currentTimeMillis()
     val stream = EventStream.from(CancellableFuture.delay(1 seconds))
 

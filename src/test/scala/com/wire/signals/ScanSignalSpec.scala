@@ -35,7 +35,7 @@ class ScanSignalSpec extends munit.FunSuite {
     scanned(capture)
     assertEquals(result(scanned.future), 1)
     assertEquals(received, Seq(1))
-    
+
     Seq(2, 3, 1).foreach(s ! _)
 
     andThen()

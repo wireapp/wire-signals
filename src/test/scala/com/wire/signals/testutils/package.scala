@@ -2,7 +2,6 @@ package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicReference
 import com.wire.signals.utils._
-import org.scalatest.Matchers.fail
 import org.threeten.bp.{Duration, Instant}
 
 import java.util.Random
@@ -92,7 +91,8 @@ package object testutils {
     * performing a series of actions)
     */
   def awaitAllTasks(implicit timeout: FiniteDuration = DefaultTimeout, dq: DispatchQueue): Unit = {
-    if (!tasksCompletedAfterWait) fail(new TimeoutException(s"Background tasks didn't complete in ${timeout.toSeconds} seconds"))
+    if (!tasksCompletedAfterWait)
+      throw new TimeoutException(s"Background tasks didn't complete in ${timeout.toSeconds} seconds")
   }
 
   def tasksRemaining(implicit dq: DispatchQueue): Boolean = dq.hasRemainingTasks

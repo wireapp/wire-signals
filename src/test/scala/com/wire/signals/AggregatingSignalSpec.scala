@@ -23,128 +23,137 @@ import testutils._
 import scala.concurrent.Promise
 
 class AggregatingSignalSpec extends munit.FunSuite {
-    test("new aggregator, no subscribers")(withAggregator { env =>
-      import env._
-      assertEquals(aggregator.value, None)
-      finishLoading()
-      publisher ! "meep"
-      assertEquals(aggregator.value, None)
-    })
+  test("new aggregator, no subscribers")(withAggregator { env =>
+    import env._
+    assertEquals(aggregator.value, None)
+    finishLoading()
+    publisher ! "meep"
+    assertEquals(aggregator.value, None)
+  })
 
-    test("one subscriber")(withAggregator { env =>
-      import env._
-      val sub = subscribe()
-      assertEquals(sub.value, None)
-      assertEquals(aggregator.value, None)
+  test("one subscriber")(withAggregator { env =>
+    import env._
+    val sub = subscribe()
+    assertEquals(sub.value, None)
+    assertEquals(aggregator.value, None)
 
-      finishLoading()
+    finishLoading()
 
-      withDelay {
-        assertEquals(sub.value.get, Seq(42))
-      }
-      assertEquals(result(aggregator.future), Seq(42))
+    withDelay {
+      assertEquals(sub.value.get, Seq(42))
+    }
+    assertEquals(result(aggregator.future), Seq(42))
 
-      publisher ! "meep"
+    publisher ! "meep"
 
-      withDelay {
-        assertEquals(sub.value.get, Seq(42, 4))
-      }
-      assertEquals(result(aggregator.future), Seq(42, 4))
-
-      aggregator.unsubscribeAll()
-
-      publisher ! "yay"
-
+    withDelay {
       assertEquals(sub.value.get, Seq(42, 4))
-      assertEquals(result(aggregator.future), Seq(42, 4))
-    })
+    }
+    assertEquals(result(aggregator.future), Seq(42, 4))
 
-    test("events while subscribed but still loading")(withAggregator { env =>
-      import env._
-      val sub = subscribe()
-      assertEquals(sub.value, None)
-      assertEquals(aggregator.value, None)
+    aggregator.unsubscribeAll()
 
-      publisher ! "meep"
-      publisher ! "moop"
-      publisher ! "eek"
+    publisher ! "yay"
 
-      Thread.sleep(333L)
+    andThen()
 
-      assertEquals(sub.value, None)
-      assertEquals(aggregator.value, None)
+    assertEquals(sub.value.get, Seq(42, 4))
+    assertEquals(result(aggregator.future), Seq(42, 4))
+  })
 
-      publisher ! "!"
-      finishLoading()
-      publisher ! "supercalifragilisticexpialidocious"
+  test("events while subscribed but still loading")(withAggregator { env =>
+    import env._
+    val sub = subscribe()
+    assertEquals(sub.value, None)
+    assertEquals(aggregator.value, None)
 
-      withDelay {
-        assertEquals(sub.value.get, Seq(42, 4, 4, 3, 1, 34))
-        assertEquals(result(aggregator.future), Seq(42, 4, 4, 3, 1, 34))
-      }
-    })
+    publisher ! "meep"
+    publisher ! "moop"
+    publisher ! "eek"
 
-    test("reload on re-wire")(withAggregator { env =>
-      import env._
-      val sub = subscribe()
-      finishLoading()
+    andThen()
 
-      publisher ! "wow"
-      publisher ! "such"
-      publisher ! "publish"
+    assertEquals(sub.value, None)
+    assertEquals(aggregator.value, None)
 
-      withDelay {
-        assertEquals(sub.value.get, Seq(42, 3, 4, 7))
-      }
-      Thread.sleep(333L)
-      assertEquals(result(aggregator.future), Seq(42, 3, 4, 7))
+    publisher ! "!"
+    finishLoading()
+    publisher ! "supercalifragilisticexpialidocious"
 
-      aggregator.unsubscribeAll()
+    withDelay {
+      assertEquals(sub.value.get, Seq(42, 4, 4, 3, 1, 34))
+      assertEquals(result(aggregator.future), Seq(42, 4, 4, 3, 1, 34))
+    }
+  })
 
-      // still holds to the last computed value after unsubscribing
+  test("reload on re-wire")(withAggregator { env =>
+    import env._
+    val sub = subscribe()
+    finishLoading()
+
+    publisher ! "wow"
+    publisher ! "such"
+    publisher ! "publish"
+
+    withDelay {
       assertEquals(sub.value.get, Seq(42, 3, 4, 7))
-      assertEquals(result(aggregator.future), Seq(42, 3, 4, 7))
+    }
 
-      // triggers reload
-      publisher ! "publisher"
+    andThen()
 
-      Thread.sleep(333L)
+    assertEquals(result(aggregator.future), Seq(42, 3, 4, 7))
 
-      // still the old value
-      assertEquals(sub.value.get, Seq(42, 3, 4, 7))
-      // a new value after reload
-      assertEquals(result(aggregator.future), Seq(42, 9))
+    aggregator.unsubscribeAll()
 
-      promise = Promise[Seq[Int]]
-      val sub2 = subscribe()
+    // still holds to the last computed value after unsubscribing
+    assertEquals(sub.value.get, Seq(42, 3, 4, 7))
+    assertEquals(result(aggregator.future), Seq(42, 3, 4, 7))
 
-      assertEquals(sub2.value.get,Seq(42, 9))
-      assertEquals(result(aggregator.future), Seq(42, 9))
+    // triggers reload
+    publisher ! "publisher"
 
-      publisher ! "much amaze"
+    andThen()
+    // still the old value
+    assertEquals(sub.value.get, Seq(42, 3, 4, 7))
+    // a new value after reload
+    assertEquals(result(aggregator.future), Seq(42, 9))
 
-      assertEquals(sub2.value.get, Seq(42, 9, 10))
-      assertEquals(result(aggregator.future), Seq(42, 9, 10))
+    promise = Promise[Seq[Int]]()
+    val sub2 = subscribe()
 
-      finishLoading(Seq(42, 3, 4, 7, 9))
+    assertEquals(sub2.value.get,Seq(42, 9))
+    assertEquals(result(aggregator.future), Seq(42, 9))
 
-      withDelay {
-        assertEquals(sub2.value.get, Seq(42, 3, 4, 7, 9, 10))
-      }
-      assertEquals(result(aggregator.future), Seq(42, 9, 10))
-      assertEquals(sub.value.get, Seq(42, 3, 4, 7))
+    publisher ! "much amaze"
 
-      publisher ! "much"
-      publisher ! "amaze"
+    assertEquals(sub2.value.get, Seq(42, 9, 10))
+    assertEquals(result(aggregator.future), Seq(42, 9, 10))
 
-      withDelay {
-        assertEquals(sub2.value.get, Seq(42, 3, 4, 7, 9, 10, 4, 5))
-      }
-      assertEquals(result(aggregator.future), Seq(42, 9, 10, 4, 5))
-    })
+    finishLoading(Seq(42, 3, 4, 7, 9))
 
-  class Fixture {
-    var promise: Promise[Seq[Int]] = Promise[Seq[Int]]
+    withDelay {
+      assertEquals(sub2.value.get, Seq(42, 3, 4, 7, 9, 10))
+    }
+    assertEquals(result(aggregator.future), Seq(42, 9, 10))
+    assertEquals(sub.value.get, Seq(42, 3, 4, 7))
+
+    publisher ! "much"
+    publisher ! "amaze"
+
+    withDelay {
+      assertEquals(sub2.value.get, Seq(42, 3, 4, 7, 9, 10, 4, 5))
+    }
+    assertEquals(result(aggregator.future), Seq(42, 9, 10, 4, 5))
+  })
+
+  final class Sub(@volatile var value: Option[Seq[Int]] = None)
+
+  object Sub {
+    def apply(): Sub = new Sub()
+  }
+
+  final class AggregatingFixture {
+    var promise: Promise[Seq[Int]] = Promise[Seq[Int]]()
     val publisher: SourceStream[String] = new SourceStream[String]()
 
     def finishLoading(v: Seq[Int] = Seq(42)): Promise[Seq[Int]] = promise.success(v)
@@ -157,10 +166,6 @@ class AggregatingSignalSpec extends munit.FunSuite {
       (b, a) => b :+ a.length
     )
 
-    final case class Sub() {
-      @volatile var value: Option[Seq[Int]] = None
-    }
-
     def subscribe(): Sub = {
       val sub = Sub()
       aggregator { i => sub.value = Some(i) }
@@ -168,8 +173,8 @@ class AggregatingSignalSpec extends munit.FunSuite {
     }
   }
 
-  def withAggregator(f: Fixture => Unit): Unit = {
-    val fixture = new Fixture
+  def withAggregator(f: AggregatingFixture => Unit): Unit = {
+    val fixture = new AggregatingFixture
     try f(fixture)
     finally fixture.aggregator.unsubscribeAll()
   }
