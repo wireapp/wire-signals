@@ -17,65 +17,69 @@
  */
 package com.wire.signals
 
-import org.scalatest._
+import com.wire.signals.testutils.{andThen, result}
 
-class ScanSignalSpec extends FeatureSpec with Matchers with BeforeAndAfter {
+class ScanSignalSpec extends munit.FunSuite {
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
-  before {
-    received = Seq[Int]()
+  override def beforeEach(context: BeforeEach): Unit = {
+    received = Seq.empty[Int]
   }
 
-  feature("Basic scanning") {
-    scenario("Normal scanning") {
-      val s = Signal(1)
-      val scanned = s.scan(0)(_ + _)
-      scanned.value shouldEqual Some(0)
+  test("Normal scanning") {
+    val s = Signal(1)
+    val scanned = s.scan(0)(_ + _)
+    assertEquals(result(scanned.future), 1)
 
-      scanned(capture)
-      scanned.value shouldEqual Some(1)
-      Seq(2, 3, 1) foreach (s ! _)
+    scanned(capture)
+    assertEquals(result(scanned.future), 1)
+    assertEquals(received, Seq(1))
+    
+    Seq(2, 3, 1).foreach(s ! _)
 
-      received shouldEqual Seq(1, 3, 6, 7)
-      scanned.value shouldEqual Some(7)
-    }
+    andThen()
 
-    scenario("disable autowiring when fetching current value") {
-      val s = Signal(1)
-      val scanned = s.scan(0)(_ + _)
-      scanned.currentValue shouldEqual Some(1)
-
-      Seq(2, 3, 1) foreach (s ! _)
-      scanned.value shouldEqual Some(7)
-    }
-
-    scenario("Chained scanning") {
-      val s = Signal(1)
-      val scanned = s.scan(0)(_ + _).scan(1)(_ * _)
-      scanned.currentValue shouldEqual Some(1)
-
-      scanned(capture)
-      Seq(2, 3, 1) foreach (s ! _)
-
-      scanned.currentValue shouldEqual Some(3 * 6 * 7)
-      received shouldEqual Seq(1, 3, 3 * 6, 3 * 6 * 7)
-    }
+    assertEquals(received, Seq(1, 3, 6, 7))
+    assertEquals(result(scanned.future), 7)
   }
 
-  feature("Subscriber lifecycle") {
-    scenario("No subscribers will be left behind") {
-      val s = Signal(1)
-      val scanned = s.scan(0)(_ + _)
-      val sub = scanned(capture)
-      Seq(2, 3) foreach (s ! _)
-      s.hasSubscribers shouldEqual true
-      scanned.hasSubscribers shouldEqual true
-      sub.destroy()
-      s.hasSubscribers shouldEqual false
-      scanned.hasSubscribers shouldEqual false
-      s ! 4
-      received shouldEqual Seq(1, 3, 6)
-    }
+  test("disable autowiring when fetching current value") {
+    val s = Signal(1)
+    val scanned = s.scan(0)(_ + _)
+    assertEquals(result(scanned.future), 1)
+
+    andThen()
+
+    Seq(2, 3, 1).foreach(s ! _)
+    assertEquals(result(scanned.future), 7)
+  }
+
+  test("Chained scanning") {
+    val s = Signal(1)
+    val scanned = s.scan(0)(_ + _).scan(1)(_ * _)
+    assertEquals(result(scanned.future), 1)
+
+    scanned(capture)
+    Seq(2, 3, 1).foreach(s ! _)
+
+    andThen()
+
+    assertEquals(result(scanned.future), 3 * 6 *7)
+    assertEquals(received, Seq(1, 3, 3 * 6, 3 * 6 * 7))
+  }
+
+  test("No subscribers will be left behind") {
+    val s = Signal(1)
+    val scanned = s.scan(0)(_ + _)
+    val sub = scanned(capture)
+    Seq(2, 3) foreach (s ! _)
+    assert(s.hasSubscribers)
+    assert(scanned.hasSubscribers)
+    sub.destroy()
+    assert(!s.hasSubscribers)
+    assert(!scanned.hasSubscribers)
+    s ! 4
+    assertEquals(received, Seq(1, 3, 6))
   }
 }
