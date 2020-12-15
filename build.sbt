@@ -62,5 +62,7 @@ lazy val root = (project in file("."))
 
 testFrameworks += new TestFramework("munit.Framework")
 
+mimaPreviousArtifacts := Set("com.wire" %% "wire-signals" % "0.3.1")
+
 
 
