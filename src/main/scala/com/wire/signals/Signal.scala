@@ -379,6 +379,23 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
   /** An alias to the `future` method. */
   @inline @deprecated("Use .future instead", "0.4") final def head: Future[V] = future
 
+  /** A shortcut that checks if the current value (or the first value after initialization) is the given one.
+    *
+    * @param value The value to test
+    * @param ec The execution context on which the check will be done
+    * @return a future of boolean: true if the signal contains the given value, false otherwise
+    */
+  final def contains(value: V)(implicit ec: ExecutionContext): Future[Boolean] = future.map(_ == value)
+
+
+  /** A shortcut that checks if the current value (or the first value after initialization) fulfills the given condition.
+    *
+    * @param f The condition tested on the signal's value
+    * @param ec The execution context on which the check will be done
+    * @return a future of boolean: true if the signal's value fulfills the given condition, false otherwise
+    */
+  final def exists(f: V => Boolean)(implicit ec: ExecutionContext): Future[Boolean] = future.map(f)
+
   /** An event stream where each event is a tuple of the old and the new value of the signal.
     * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream,
     * together with the old value which you can use to check what exactly changed. The old value is wrapped in an `Option`: if the signal 
