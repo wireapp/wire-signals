@@ -17,7 +17,7 @@
  */
 package com.wire.signals
 
-import com.wire.signals.testutils.result
+import com.wire.signals.testutils.{andThen, awaitAllTasks, result}
 import utils._
 
 import scala.concurrent.Promise
@@ -111,5 +111,163 @@ class EventStreamSpec extends munit.FunSuite {
     stream { _ => promise.success(System.currentTimeMillis() - t) }
 
     assert(result(promise.future) >= 1000L)
+  }
+
+  test("zip two streams and emit an event coming from either of them") {
+    val stream1 = EventStream[Int]()
+    val stream2 = EventStream[Int]()
+    val zip = EventStream.zip(stream1, stream2)
+
+    var expected: Int = 0
+    var eventReceived = false
+    zip.foreach { n =>
+      eventReceived = true
+      assertEquals(n, expected)
+    }
+
+    def test(n: Int, source: SourceStream[Int]): Unit = {
+      eventReceived = false
+      expected = n
+      source ! n
+      andThen(100)
+      assert(eventReceived)
+    }
+
+    test(1, stream1)
+    test(2, stream2)
+    test(3, stream1)
+    test(4, stream2)
+  }
+
+  test("zip the first stream with another and emit an event coming from either of them") {
+    val stream1 = EventStream[Int]()
+    val stream2 = EventStream[Int]()
+    val zip = stream1.zip(stream2)
+
+    var expected: Int = 0
+    var eventReceived = false
+    zip.foreach { n =>
+      eventReceived = true
+      assertEquals(n, expected)
+    }
+
+    def test(n: Int, source: SourceStream[Int]): Unit = {
+      eventReceived = false
+      expected = n
+      source ! n
+      andThen(100)
+      assert(eventReceived)
+    }
+
+    test(1, stream1)
+    test(2, stream2)
+    test(3, stream1)
+    test(4, stream2)
+  }
+
+  test("pipe events from the first stream to another") {
+    val stream1 = EventStream[Int]()
+    val stream2 = EventStream[Int]()
+
+    var expected: Int = 0
+    var eventReceived = false
+    stream1.pipeTo(stream2)
+    stream2.foreach { n =>
+      eventReceived = true
+      assertEquals(n, expected)
+    }
+
+    def test(n: Int): Unit = {
+      eventReceived = false
+      expected = n
+      stream1 ! n
+      andThen(100)
+      assert(eventReceived)
+    }
+
+    test(1)
+    test(2)
+    test(3)
+    test(4)
+  }
+
+  test("pipe events with the | operator from the first stream to another") {
+    val stream1 = EventStream[Int]()
+    val stream2 = EventStream[Int]()
+
+    var expected: Int = 0
+    var eventReceived = false
+    stream1 | stream2
+    stream2.foreach { n =>
+      eventReceived = true
+      assertEquals(n, expected)
+    }
+
+    def test(n: Int): Unit = {
+      eventReceived = false
+      expected = n
+      stream1 ! n
+      andThen(100)
+      assert(eventReceived)
+    }
+
+    test(1)
+    test(2)
+    test(3)
+    test(4)
+  }
+
+  test("create an event stream from a signal") {
+    val signal = Signal[Int]()
+    val stream = EventStream.from(signal)
+
+    var expected: Int = 0
+    var eventReceived = false
+    stream.foreach { n =>
+      eventReceived = true
+      assertEquals(n, expected)
+    }
+
+    def test(n: Int): Unit = {
+      eventReceived = false
+      expected = n
+      signal ! n
+      andThen(100)
+      assert(eventReceived)
+    }
+
+    test(1)
+    test(2)
+    test(3)
+    test(4)
+  }
+
+  test("create an event stream from a future") {
+    val promise = Promise[Int]()
+    val stream = EventStream.from(promise.future)
+
+    var received: Int = 0
+    stream.foreach { n =>
+      received = n
+    }
+
+    promise.success(1)
+    Thread.sleep(100)
+    assertEquals(1, received)
+  }
+
+  test("create an event stream from a future on a separate execution context") {
+    implicit val dq: DispatchQueue = SerialDispatchQueue()
+    val promise = Promise[Int]()
+    val stream = EventStream.from(promise.future, dq)
+
+    var received: Int = 1
+    stream.foreach { n =>
+      received = n
+    }
+
+    promise.success(1)
+    awaitAllTasks
+    assertEquals(1, received)
   }
 }

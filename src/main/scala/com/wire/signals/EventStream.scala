@@ -201,7 +201,7 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     * @tparam V The type of the resulting event stream.
     * @return A new or already existing event stream to which we switch as the result of receiving the original event.
     */
-  final def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
+  final def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapEventStream[E, V](this, f)
 
   /** Creates a new `EventStream[V]` by mapping events of the type `E` emitted by the original one.
     *
@@ -365,7 +365,7 @@ final private[signals] class ScanEventStream[E, V](source: EventStream[E], zero:
   }
 }
 
-final private[signals] class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
+final private[signals] class FlatMapEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
   extends EventStream[V] with EventSubscriber[E] {
   @volatile private var mapped: Option[EventStream[V]] = None
 
