@@ -76,25 +76,25 @@ class MapSignalSpec extends munit.FunSuite {
     assertEquals(received, Seq(2, 4, 6))
   }
 
-  test("wire and un-wire mapped signal wrapper") {
-    lazy val s1 = new IntSignal(0)
+  test("wire and un-wire a mapped signal") {
+    lazy val s1 = Signal[Int](0)
     lazy val s = s1.map { _ => 1 }
 
-    assert(!s1.wired)
+    assert(s1.wired) // source and const signals have autowiring disabled, so they're "wired"by default
 
-    val o = s { _ => () }
+    val o = s.foreach { _ => () }
 
-    assert(s1.wired)
+    assert(s.wired)
 
     o.disable()
 
-    assert(!s1.wired)
+    assert(!s.wired)
 
     o.enable()
-    assert(s1.wired)
+    assert(s.wired)
 
     o.destroy()
-    assert(!s1.wired)
+    assert(!s.wired)
   }
 
 }
