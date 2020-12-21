@@ -102,7 +102,7 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s2 = Signal(2)
 
     val fm = s.flatMap { Seq(s1, s2) }
-    val sub = fm(capture)
+    val sub = fm.foreach(capture)
 
     s1 ! 3
     s2 ! 4
@@ -129,16 +129,16 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s2 = new IntSignal
     val s = s1.flatMap { _ => s2 }
 
-    assert(!s1.isWired)
-    assert(!s2.isWired)
-    val o = s { _ => () }
+    assert(!s1.wired)
+    assert(!s2.wired)
+    val o = s.foreach { _ => () }
 
-    assert(s1.isWired)
-    assert(s2.isWired)
+    assert(s1.wired)
+    assert(s2.wired)
 
     o.disable()
-    assert(!s1.isWired)
-    assert(!s2.isWired)
+    assert(!s1.wired)
+    assert(!s2.wired)
   }
 
   test("un-wire discarded signal on change") {
@@ -147,22 +147,22 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s2 = new IntSignal(2)
 
     val fm = s flatMap Seq(s1, s2)
-    val o = fm(_ => ())
+    val o = fm.foreach(_ => ())
 
-    assert(s.isWired)
-    assert(s1.isWired)
-    assert(!s2.isWired)
+    assert(s.wired)
+    assert(s1.wired)
+    assert(!s2.wired)
 
     s ! 1
 
-    assert(s.isWired)
-    assert(!s1.isWired)
-    assert(s2.isWired)
+    assert(s.wired)
+    assert(!s1.wired)
+    assert(s2.wired)
 
     o.destroy()
-    assert(!s.isWired)
-    assert(!s1.isWired)
-    assert(!s2.isWired)
+    assert(!s.wired)
+    assert(!s1.wired)
+    assert(!s2.wired)
   }
 
   test("update value when wired") {
@@ -175,7 +175,7 @@ class FlatMapSignalSpec extends munit.FunSuite {
     s ! 1
     assertEquals(s.value, Some(1))
     assertEquals(fm.value, None) // not updated because signal is not autowired
-    val o = fm(_ => ())
+    fm.foreach(_ => ())
 
     assertEquals(fm.value, Some(1)) // updated when wiring
   }

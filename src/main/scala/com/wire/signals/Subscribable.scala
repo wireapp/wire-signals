@@ -60,7 +60,6 @@ trait Subscribable[SourceSubscriber] {
   private object subscribersMonitor
 
   private[this] var autowiring = true
-  @volatile private[signals] var wired = false
   @volatile private[this] var subscribers = Set.empty[SourceSubscriber]
 
   /** This method will be called on creating the first subscription or on `disableAutoWiring`.
@@ -79,11 +78,9 @@ trait Subscribable[SourceSubscriber] {
     * @param subscriber An instance of a subscriber class, known to the class implementing this `Subscribable`
     */
   def subscribe(subscriber: SourceSubscriber): Unit = subscribersMonitor.synchronized {
+    val wiredAlready = wired
     subscribers += subscriber
-    if (!wired) {
-      wired = true
-      onWire()
-    }
+    if (!wiredAlready) onWire()
   }
 
   /** Removes a previously registered subscriber instance.
@@ -93,10 +90,7 @@ trait Subscribable[SourceSubscriber] {
     */
   def unsubscribe(subscriber: SourceSubscriber): Unit = subscribersMonitor.synchronized {
     subscribers -= subscriber
-    if (wired && autowiring && subscribers.isEmpty) {
-      wired = false
-      onUnwire()
-    }
+    if (autowiring && !hasSubscribers) onUnwire()
   }
 
   /** The class which implements this `Subscribable` can use this method to notify all the subscribers that a new event
@@ -110,16 +104,13 @@ trait Subscribable[SourceSubscriber] {
     *
     * @return true if any subscribers are registered, false otherwise
     */
-  def hasSubscribers: Boolean = subscribers.nonEmpty
+  @inline final def hasSubscribers: Boolean = subscribers.nonEmpty
 
   /** Empties the set of subscribers and calls `unWire` if `disableAutowiring` wasn't called before.
     */
   def unsubscribeAll(): Unit = subscribersMonitor.synchronized {
     subscribers = Set.empty
-    if (wired && autowiring) {
-      wired = false
-      onUnwire()
-    }
+    if (autowiring) onUnwire()
   }
 
   /** Typically, a newly created event streams and signals are lazy in the sense that till there are no subscriptions to them,
@@ -134,10 +125,9 @@ trait Subscribable[SourceSubscriber] {
     */
   def disableAutowiring(): this.type = subscribersMonitor.synchronized {
     autowiring = false
-    if (!wired) {
-      wired = true
-      onWire()
-    }
+    if (subscribers.isEmpty) onWire()
     this
   }
+
+  @inline final def wired: Boolean = hasSubscribers || !autowiring
 }

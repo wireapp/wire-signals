@@ -80,21 +80,21 @@ class MapSignalSpec extends munit.FunSuite {
     lazy val s1 = new IntSignal(0)
     lazy val s = s1.map { _ => 1 }
 
-    assert(!s1.isWired)
+    assert(!s1.wired)
 
     val o = s { _ => () }
 
-    assert(s1.isWired)
+    assert(s1.wired)
 
     o.disable()
 
-    assert(!s1.isWired)
+    assert(!s1.wired)
 
     o.enable()
-    assert(s1.isWired)
+    assert(s1.wired)
 
     o.destroy()
-    assert(!s1.isWired)
+    assert(!s1.wired)
   }
 
 }

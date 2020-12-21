@@ -17,12 +17,4 @@
  */
 package com.wire.signals
 
-final class IntSignal(v: Int = 0) extends SourceSignal[Int](Some(v)) {
-  private var _wired = false
-
-  def isWired: Boolean = _wired
-
-  override protected def onWire(): Unit = _wired = true
-
-  override protected def onUnwire(): Unit = _wired = false
-}
+final class IntSignal(v: Int = 0) extends SourceSignal[Int](Some(v))
