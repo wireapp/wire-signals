@@ -70,21 +70,21 @@ class ThrottledSignalSpec extends munit.FunSuite {
   })
 
   test("wire and un-wire throttled signal") {
-    lazy val s = new IntSignal(0)
+    lazy val s = Signal[Int](0)
     val m = s.throttle(100.millis)
-    assert(!s.isWired)
+    assert(!m.wired)
 
     val o = m { _ => () }
-    assert(s.isWired)
+    assert(m.wired)
 
     o.disable()
-    assert(!s.isWired)
+    assert(!m.wired)
 
     o.enable()
-    assert(s.isWired)
+    assert(m.wired)
 
     o.destroy()
-    assert(!s.isWired)
+    assert(!m.wired)
   }
 
   class Spy {

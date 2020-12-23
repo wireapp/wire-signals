@@ -201,14 +201,17 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     * @tparam V The type of the resulting event stream.
     * @return A new or already existing event stream to which we switch as the result of receiving the original event.
     */
-  final def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapLatestEventStream[E, V](this, f)
+  final def flatMap[V](f: E => EventStream[V]): EventStream[V] = new FlatMapEventStream[E, V](this, f)
 
   /** Creates a new `EventStream[V]` by mapping events of the type `E` emitted by the original one.
     *
     * @param f A function which for a given event of the type `E` will return a future of the type `V`. If the future finishes
-    *          with success, the resulting event of the type `V` will be emitted by the new stream.
+    *          with success, the resulting event of the type `V` will be emitted by the new stream. Two events, coming one
+    *          after another, are guaranteed to be mapped in the same order even if the processing for the second event
+    *          finishes before the processing for the first one.
     * @tparam V The type of the resulting event.
     * @return A new event stream of type `V`.
+    * @fixme Sometimes the order is changed if the future returned by `f` is already completed for some cases, and not others.
     */
   final def mapAsync[V](f: E => Future[V]): EventStream[V] = new FutureEventStream[E, V](this, f)
 
@@ -221,7 +224,7 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
   final def filter(f: E => Boolean): EventStream[E] = new FilterEventStream[E](this, f)
 
   /** An alias for `filter` used in the for/yield notation.  */
-  final def withFilter(f: E => Boolean): EventStream[E] = filter(f)
+  @inline final def withFilter(f: E => Boolean): EventStream[E] = filter(f)
 
   /** Creates a new event stream of events of type `V` by applying a partial function which maps the original event of type `E`
     * to an event of type `V`. If the partial function doesn't work for the emitted event, nothing will be emitted in the
@@ -290,7 +293,6 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     */
   final def ifTrue(implicit ev: E =:= Boolean): EventStream[Unit] = collect { case true => () }
 
-
   /** Assuming that the event emitted by the stream can be interpreted as a boolean, this method creates a new event stream
     * of type `Unit` which emits unit events for each original event which is interpreted as false.
     *
@@ -330,11 +332,11 @@ final private[signals] class FutureEventStream[E, V](source: EventStream[E], f: 
   private val key = java.util.UUID.randomUUID()
 
   override protected[signals] def onEvent(event: E, sourceContext: Option[ExecutionContext]): Unit =
-    Serialized.future(key.toString)(f(event).andThen {
+    Serialized.future(key.toString)(f(event)).andThen {
       case Success(v)                         => dispatch(v, sourceContext)
       case Failure(_: NoSuchElementException) => // do nothing to allow Future.filter/collect
       case Failure(_)                         =>
-    }(sourceContext.getOrElse(Threading.defaultContext)))
+    }(sourceContext.getOrElse(Threading.defaultContext))
 }
 
 final private[signals] class CollectEventStream[E, V](source: EventStream[E], pf: PartialFunction[E, V])
@@ -365,7 +367,7 @@ final private[signals] class ScanEventStream[E, V](source: EventStream[E], zero:
   }
 }
 
-final private[signals] class FlatMapLatestEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
+final private[signals] class FlatMapEventStream[E, V](source: EventStream[E], f: E => EventStream[V])
   extends EventStream[V] with EventSubscriber[E] {
   @volatile private var mapped: Option[EventStream[V]] = None
 
