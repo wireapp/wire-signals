@@ -311,4 +311,57 @@ class SignalSpec extends munit.FunSuite {
       assert(additionalAssert(signal))
       assertEquals(signal.currentValue.get, lastSent)
     }
+
+  test("An empty signal never returns a value") {
+    val signal = Signal.empty[Int]
+    intercept[java.util.concurrent.TimeoutException](result(signal.future))
+  }
+
+  test("An uninitialized source signal never returns a value") {
+    val signal = Signal[Int]()
+    intercept[java.util.concurrent.TimeoutException](result(signal.future))
+  }
+
+  test("An initialized source signal returns the value immediately") {
+    val signal = Signal(1)
+    assertEquals(signal.currentValue, Some(1))
+    assertEquals(result(signal.future), 1)
+  }
+
+  test("An initialized const signal returns the value immediately") {
+    val signal = Signal.const(1)
+    assertEquals(signal.currentValue, Some(1))
+    assertEquals(result(signal.future), 1)
+  }
+
+  test("zip two signals and emit tuples every time an event comes from either of them") {
+    val signal1 = Signal[Int]()
+    val signal2 = Signal[Int]()
+    val zip = Signal.zip(signal1, signal2)
+
+    intercept[java.util.concurrent.TimeoutException](result(zip.future))
+
+    signal1 ! 1
+    andThen()
+    intercept[java.util.concurrent.TimeoutException](result(zip.future))
+
+    signal2 ! 2
+    andThen()
+    assertEquals(result(zip.future), (1, 2))
+
+    val check = for {
+      oneN <- signal1
+      twoN <- signal2
+      zipN <- zip
+    } yield (zipN == (oneN, twoN), zipN)
+
+    signal1 ! 3
+    andThen()
+    assertEquals(result(check.future), (true, (3, 2)))
+
+    signal2 ! 4
+    andThen()
+    assertEquals(result(check.future), (true, (3, 4)))
+  }
+
 }
