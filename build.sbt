@@ -45,18 +45,6 @@ val scala213Options = Seq(
   "-opt:inline"
 )
 
-/*
-scalacOptions ++= Seq(
-    "-Xfatal-warnings",
-    "-deprecation",
-    "-feature",
-    "-unchecked",
-    "-language:implicitConversions",
-    "-language:higherKinds",
-    "-language:existentials",
-    "-language:postfixOps"
-)
- */
 homepage := Some(url("https://github.com/wireapp/wire-signals"))
 licenses := Seq("GPL 3.0" -> url("https://www.gnu.org/licenses/gpl-3.0.en.html"))
 publishMavenStyle := true
