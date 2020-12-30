@@ -8,8 +8,55 @@ lazy val supportedScalaVersions = List(scala213, scala212, scala211)
 ThisBuild / organization := "com.wire"
 ThisBuild / scalaVersion := scala213
 
-scalacOptions ++= Seq("-deprecation", "-feature")
+val standardOptions = Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-encoding", "utf8"
+)
 
+val scala211Options = Seq(
+  "-optimise"
+)
+
+val scala212Options = Seq(
+  "-opt:unreachable-code",
+  "-opt:simplify-jumps",
+  "-opt:compact-locals",
+  "-opt:copy-propagation",
+  "-opt:redundant-casts",
+  "-opt:box-unbox",
+  "-opt:nullness-tracking",
+  "-opt:closure-invocations"
+)
+
+val scala213Options = Seq(
+  "-opt:unreachable-code",
+  "-opt:simplify-jumps",
+  "-opt:compact-locals",
+  "-opt:copy-propagation",
+  "-opt:redundant-casts",
+  "-opt:box-unbox",
+  "-opt:nullness-tracking",
+  "-opt:closure-invocations",
+  "-opt:allow-skip-core-module-init",
+  "-opt:assume-modules-non-null",
+  "-opt:allow-skip-class-loading",
+  "-opt:inline"
+)
+
+/*
+scalacOptions ++= Seq(
+    "-Xfatal-warnings",
+    "-deprecation",
+    "-feature",
+    "-unchecked",
+    "-language:implicitConversions",
+    "-language:higherKinds",
+    "-language:existentials",
+    "-language:postfixOps"
+)
+ */
 homepage := Some(url("https://github.com/wireapp/wire-signals"))
 licenses := Seq("GPL 3.0" -> url("https://www.gnu.org/licenses/gpl-3.0.en.html"))
 publishMavenStyle := true
@@ -42,9 +89,9 @@ resolvers ++= Seq(
 
 publishMavenStyle := true
 
-publishConfiguration := publishConfiguration.value.withOverwrite(true)
+publishConfiguration      := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
-publishM2Configuration := publishM2Configuration.value.withOverwrite(true)
+publishM2Configuration    := publishM2Configuration.value.withOverwrite(true)
 
 Test / scalaVersion := scala213
 
@@ -57,12 +104,19 @@ lazy val root = (project in file("."))
 
       //Test dependencies
       "org.scalameta" %% "munit" % "0.7.19" % Test
-    )
+    ),
+    scalacOptions ++= standardOptions ++ {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 11)) => scala211Options
+        case Some((2, 12)) => scala212Options
+        case _             => scala213Options
+      }
+    }
   )
 
 testFrameworks += new TestFramework("munit.Framework")
 
-mimaPreviousArtifacts := Set("com.wire" %% "wire-signals" % "0.3.1")
+mimaPreviousArtifacts := Set("com.wire" %% "wire-signals" % "0.3.2")
 
 
 
