@@ -49,6 +49,8 @@ val fooSignal = for {
 If you want to know more about how we use it:
 * here's an [Overview](https://github.com/wireapp/wire-signals/wiki/Overview)
 * [Scala Docs](https://wire.engineering/wire-signals/api/com/wire/signals/index.html)
+* [Wire Signals - Yet Another Event Streams Library](https://youtu.be/IgKjd_fhM0M) - a video based on a talk from [Functional Scala 2020](https://www.functionalscala.com/). It discusses the whole theory behind event streams and provides examples from the Wire Signals library.
+* [An article on Medium.com](https://makingthematrix.medium.com/wire-signals-81918bbcc07f?source=friends_link&sk=948c6f03e507e6f0188737711511a4b0) - basically a transcript of the video above.
 * and a slightly outdated video about how we use it at Wire Android: [Scala on Wire](https://www.youtube.com/watch?v=dnsyd-h5piI)
 
 (more info coming soon)
