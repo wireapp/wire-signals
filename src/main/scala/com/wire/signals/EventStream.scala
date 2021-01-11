@@ -284,7 +284,10 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
   }
 
   /** A shorthand for `next` which additionally unwraps the cancellable future */
-  final def future(implicit context: EventContext = EventContext.Global): Future[E] = next.future
+  @inline final def future(implicit context: EventContext = EventContext.Global): Future[E] = next.future
+
+  /** An alias to the `future` method. */
+  @inline final def head: Future[E] = future
 
   /** Assuming that the event emitted by the stream can be interpreted as a boolean, this method creates a new event stream
     * of type `Unit` which emits unit events for each original event which is interpreted as true.

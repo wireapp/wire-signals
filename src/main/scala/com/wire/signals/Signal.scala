@@ -377,7 +377,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
   }
 
   /** An alias to the `future` method. */
-  @inline @deprecated("Use .future instead", "0.4") final def head: Future[V] = future
+  @inline final def head: Future[V] = future
 
   /** A shortcut that checks if the current value (or the first value after initialization) is the given one.
     *
