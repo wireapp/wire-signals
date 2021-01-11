@@ -10,7 +10,7 @@ This project is an attempt to migrate all that functionality into a separate lib
 #### How to use
 To include `wire-signals` in your project, add this to your library dependencies in sbt:
 ```
-libraryDependencies += "com.wire" %% "wire-signals" % "0.3.1"
+libraryDependencies += "com.wire" %% "wire-signals" % "0.3.2"
 ```
 Currently `wire-signals` work with Scala 2.11 (because Android), 2.12, and 2.13.
 
