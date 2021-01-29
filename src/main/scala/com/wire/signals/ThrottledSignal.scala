@@ -1,7 +1,5 @@
 package com.wire.signals
 
-import java.util.concurrent.atomic.AtomicBoolean
-
 import com.wire.signals.CancellableFuture.delayed
 
 import scala.concurrent.ExecutionContext
@@ -36,21 +34,26 @@ object ThrottledSignal {
   * @tparam V The value type of the signal.
   */
 class ThrottledSignal[V](val source: Signal[V], val delay: FiniteDuration) extends ProxySignal[V](source) {
-  import scala.concurrent.duration._
-
-  private val waiting = new AtomicBoolean(false)
-  @volatile private var lastDispatched = 0L
+  @volatile private var throttle = Option.empty[CancellableFuture[Unit]]
+  @volatile private var ignoredEvent = false
 
   override protected def computeValue(current: Option[V]): Option[V] = source.value
 
   override protected def notifySubscribers(ec: Option[ExecutionContext]): Unit =
-    if (waiting.compareAndSet(false, true)) {
-      val context = ec.getOrElse(Threading.defaultContext)
-      val d = math.max(0, lastDispatched - System.currentTimeMillis() + delay.toMillis)
-      delayed(d.millis) {
-        lastDispatched = System.currentTimeMillis()
-        waiting.set(false)
-        super.notifySubscribers(Some(context))
-      }(context)
+    syncNotifySubscribers(fromThrottle = false)(ec.getOrElse(Threading.defaultContext))
+
+  private def syncNotifySubscribers(fromThrottle: Boolean)(implicit context: ExecutionContext): Unit = synchronized {
+    @inline def newThrottle = delayed(delay)(syncNotifySubscribers(fromThrottle = true))
+
+    if (throttle.isEmpty) throttle = Some(newThrottle)
+    else if (!fromThrottle) ignoredEvent = true
+    else {
+      super.notifySubscribers(Some(context))
+      throttle.foreach(t => if (!t.isCompleted) t.cancel())
+      throttle = if (ignoredEvent) {
+        ignoredEvent = false
+        Some(newThrottle) // if we ignored an event, let's notify subscribers again, just to be sure the signal is up to date.
+      } else None
     }
+  }
 }
