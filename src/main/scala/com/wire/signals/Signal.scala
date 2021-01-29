@@ -385,7 +385,8 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     * @param ec The execution context on which the check will be done
     * @return a future of boolean: true if the signal contains the given value, false otherwise
     */
-  final def contains(value: V)(implicit ec: ExecutionContext): Future[Boolean] = future.map(_ == value)
+  final def contains(value: V)(implicit ec: ExecutionContext): Future[Boolean] =
+    if (empty) Future.successful(false) else future.map(_ == value)
 
 
   /** A shortcut that checks if the current value (or the first value after initialization) fulfills the given condition.
@@ -394,7 +395,8 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     * @param ec The execution context on which the check will be done
     * @return a future of boolean: true if the signal's value fulfills the given condition, false otherwise
     */
-  final def exists(f: V => Boolean)(implicit ec: ExecutionContext): Future[Boolean] = future.map(f)
+  final def exists(f: V => Boolean)(implicit ec: ExecutionContext): Future[Boolean] =
+    if (empty) Future.successful(false) else future.map(f)
 
   /** An event stream where each event is a tuple of the old and the new value of the signal.
     * Every time the value of the signal changes - actually changes to another value - the new value will be published in this stream,

@@ -312,4 +312,82 @@ class SignalSpec extends munit.FunSuite {
       assert(additionalAssert(signal))
       assertEquals(signal.currentValue.get, lastSent)
     }
+
+  test("An uninitialized signal should not contain any value") {
+    val s = Signal.empty[Int]
+    assert(!result(s.contains(1)))
+  }
+
+  test("An initialized signal should contain the value it's initialized with") {
+    val s = Signal.const(2)
+    assert(!result(s.contains(1)))
+    assert(result(s.contains(2)))
+  }
+
+  test("The 'exists' check for an uninitialized signal should always return false") {
+    val s = Signal.empty[FiniteDuration]
+    assert(!result(s.exists(d => d.toMillis == 5)))
+  }
+
+  test("The 'exists' check for an initialized signal should work accordingly") { // I know, stupid name
+    val s = Signal.const(5.millis)
+    assert(!result(s.exists(d => d.toMillis == 2)))
+    assert(result(s.exists(d => d.toMillis == 5)))
+  }
+
+  test("After a signal is initialized, onUpdated should return the new value, and no old value") {
+    val s = Signal[Int]()
+    val p = Promise[(Option[Int], Int)]()
+
+    s.onUpdated { case (oldValue, newValue) => p.success((oldValue, newValue)) }
+
+    s ! 1
+
+    assertEquals(result(p.future), (None, 1))
+  }
+
+  test("After the value is changed, onUpdated should return the new value, and the old value") {
+    implicit val ec: ExecutionContext = SerialDispatchQueue()
+    val s = Signal[Int](0)
+    var p = Promise[(Option[Int], Int)]()
+
+    s.onUpdated { case (oldValue, newValue) => p.success((oldValue, newValue)) }
+
+    s ! 1
+
+    assertEquals(result(p.future), (Some(0), 1))
+    p = Promise()
+
+    s ! 2
+
+    assertEquals(result(p.future), (Some(1), 2))
+  }
+
+  test("After a signal is initialized, onChanged should return the new value") {
+    val s = Signal[Int]()
+    val p = Promise[Int]()
+
+    s.onChanged { newValue => p.success(newValue) }
+
+    s ! 1
+
+    assertEquals(result(p.future), 1)
+  }
+
+  test("After the value is changed, onChanged should return only the new value") {
+    implicit val ec: ExecutionContext = SerialDispatchQueue()
+    val s = Signal[Int](0)
+    var p = Promise[Int]()
+
+    s.onChanged { newValue => p.success(newValue) }
+
+    s ! 1
+
+    assertEquals(result(p.future), 1)
+    p = Promise()
+
+    s ! 2
+
+    assertEquals(result(p.future), 2)
+  }
 }
