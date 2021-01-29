@@ -289,7 +289,7 @@ class EventStreamSpec extends munit.FunSuite {
     val waitForMe = Promise[Unit]()
 
     mappedAsync.foreach { n =>
-      resultsAsync.addOne(n)
+      resultsAsync += n
       if (resultsAsync.length == 4) waitForMe.success(())
     }
 

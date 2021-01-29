@@ -136,6 +136,7 @@ class SignalSpec extends munit.FunSuite {
   }
 
   test("Many concurrent subscriber changes") {
+    implicit val executionContext: ExecutionContext = UnlimitedDispatchQueue()
     val barrier = new CyclicBarrier(50)
     val num = new AtomicInteger(0)
     val s = Signal(0)

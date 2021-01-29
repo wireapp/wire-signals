@@ -18,15 +18,15 @@
 package com.wire.signals
 
 import java.util.concurrent.atomic.AtomicReference
-
 import com.wire.signals.testutils._
-
 import org.threeten.bp.Instant
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import Threading.defaultContext
 import CancellableFuture.delayed
+
+import java.lang.Thread.sleep
 
 class ThrottledSignalSpec extends munit.FunSuite {
 
@@ -38,7 +38,7 @@ class ThrottledSignalSpec extends munit.FunSuite {
       assertEquals(spy.received.get.map(_._1), Vector[Int](1))
 
       (2 to 3) foreach { v =>
-        Thread.sleep(1)
+        sleep(1)
         s ! v
         s ! v + 10
       }
@@ -85,6 +85,24 @@ class ThrottledSignalSpec extends munit.FunSuite {
 
     o.destroy()
     assert(!m.wired)
+  }
+
+  test("emit the last change from those received during the same time interval") {
+    val s = Signal[Int]()
+    val m = s.throttle(100.millis)
+
+    var res: Int = 0
+    m.foreach { res = _ }
+    s ! 1
+    sleep(105)
+    assertEquals(res, 1)
+    s ! 2
+    sleep(5)
+    s ! 3
+    sleep(5)
+    s ! 4
+    sleep(105)
+    assertEquals(res, 4)
   }
 
   class Spy {
