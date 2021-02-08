@@ -27,7 +27,6 @@ import scala.concurrent._
 import scala.concurrent.duration._
 
 class SignalSpec extends munit.FunSuite {
-  private implicit val defaultContext: DispatchQueue = Threading.defaultContext
   private var received = Seq[Int]()
   private val capture = (value: Int) => received = received :+ value
 
@@ -207,6 +206,7 @@ class SignalSpec extends munit.FunSuite {
   }
 
   private def incrementalUpdates(onUpdate: (Signal[Int], ConcurrentLinkedQueue[Int]) => Unit): Unit = {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     100 times {
       val signal = Signal(0)
       val received = new ConcurrentLinkedQueue[Int]()
@@ -233,42 +233,52 @@ class SignalSpec extends munit.FunSuite {
   }
 
   test("Two concurrent dispatches (global event and background execution contexts)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(2, 1000, EventContext.Global, Some(defaultContext), defaultContext)()
   }
 
   test("Several concurrent dispatches (global event and background execution contexts)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(10, 200, EventContext.Global, Some(defaultContext), defaultContext)()
   }
 
   test("Many concurrent dispatches (global event and background execution contexts)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(100, 200, EventContext.Global, Some(defaultContext), defaultContext)()
   }
 
   test("Two concurrent dispatches (subscriber on UI eventcontext)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(2, 1000, eventContext, Some(defaultContext), defaultContext)()
   }
 
   test("Several concurrent dispatches (subscriber on UI event context)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(10, 200, eventContext, Some(defaultContext), defaultContext)()
   }
 
   test("Many concurrent dispatches (subscriber on UI event context)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(100, 100, eventContext, Some(defaultContext), defaultContext)()
   }
 
   test("Several concurrent dispatches (global event context, no source context)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(10, 200, EventContext.Global, None, defaultContext)()
   }
 
   test("Several concurrent dispatches (subscriber on UI context, no source context)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentDispatches(10, 200, eventContext, None, defaultContext)()
   }
 
   test("Several concurrent mutations (subscriber on global event context)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentMutations(10, 200, EventContext.Global, defaultContext)()
   }
 
   test("Several concurrent mutations (subscriber on UI event context)") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     concurrentMutations(10, 200, eventContext, defaultContext)()
   }
 
@@ -314,22 +324,26 @@ class SignalSpec extends munit.FunSuite {
     }
 
   test("An uninitialized signal should not contain any value") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     val s = Signal.empty[Int]
     assert(!result(s.contains(1)))
   }
 
   test("An initialized signal should contain the value it's initialized with") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     val s = Signal.const(2)
     assert(!result(s.contains(1)))
     assert(result(s.contains(2)))
   }
 
   test("The 'exists' check for an uninitialized signal should always return false") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
     val s = Signal.empty[FiniteDuration]
     assert(!result(s.exists(d => d.toMillis == 5)))
   }
 
-  test("The 'exists' check for an initialized signal should work accordingly") { // I know, stupid name
+  test("The 'exists' check for an initialized signal should work accordingly") { //
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext// I know, stupid name
     val s = Signal.const(5.millis)
     assert(!result(s.exists(d => d.toMillis == 2)))
     assert(result(s.exists(d => d.toMillis == 5)))
@@ -389,5 +403,209 @@ class SignalSpec extends munit.FunSuite {
     s ! 2
 
     assertEquals(result(p.future), 2)
+  }
+
+  test("After zipping two signals, the zipped signal updates from both sources") {
+    val s1 = Signal(0)
+    val s2 = Signal("")
+    val zipped = Signal.zip(s1, s2)
+
+    assert(waitForResult(zipped, (0, "")))
+
+    s1 ! 1
+
+    assert(waitForResult(zipped, (1, "")))
+
+    s2 ! "a"
+
+    assert(waitForResult(zipped, (1, "a")))
+  }
+
+  test("Zip one signal with another and assert that the zipped signal updates from both sources") {
+    val s1 = Signal(0)
+    val s2 = Signal("")
+    val zipped = s1.zip(s2)
+
+    assert(waitForResult(zipped, (0, "")))
+
+    s1 ! 1
+
+    assert(waitForResult(zipped, (1, "")))
+
+    s2 ! "a"
+
+    assert(waitForResult(zipped, (1, "a")))
+  }
+
+  test("Map one signal to another") {
+    val s1 = Signal(0)
+    val mapped = s1.map(n => s"number: $n")
+
+    assert(waitForResult(mapped, "number: 0"))
+
+    s1 ! 1
+
+    assert(waitForResult(mapped, "number: 1"))
+  }
+
+  test("A signal mapped from an empty signal stays empty") {
+    val s1 = Signal.empty[Int]
+    val mapped = s1.map(n => s"number: $n")
+
+    assert(!waitForResult(mapped, "number: 0")(1.second))
+  }
+
+  test("filter numbers to even and odd") {
+    implicit val dq: DispatchQueue = SerialDispatchQueue()
+
+    val numbers = Seq(1, 2, 3, 4, 5, 6, 7, 8, 9)
+
+    val source = Signal[Int]()
+    val evenNumbers = source.filter(_ % 2 == 0)
+    val oddNumbers = source.filter(_ % 2 != 0)
+
+    var evenResults = List[Int]()
+    var oddResults = List[Int]()
+    val waitForMe = Promise[Unit]()
+
+    def add(n: Int, toEven: Boolean) = {
+      if (toEven) evenResults :+= n else oddResults :+= n
+      if (evenResults.length + oddResults.length == numbers.length) waitForMe.success(())
+    }
+
+    evenNumbers.foreach(add(_, toEven = true))
+    oddNumbers.foreach(add(_, toEven = false))
+
+    numbers.foreach(source ! _)
+
+    result(waitForMe.future)
+
+    assertEquals(evenResults, List(2, 4, 6, 8))
+    assertEquals(oddResults, List(1, 3, 5, 7, 9))
+  }
+
+  test("Call onTrue when a boolean signal becomes true for the first time") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
+
+    val s = Signal[Boolean]()
+    var res = false
+    s.onTrue.foreach { _ => res = true }
+
+    assert(!res)
+
+    s ! false
+
+    assert(waitForResult(s, false))
+    assert(!res)
+
+    s ! true
+
+    assert(waitForResult(s, true))
+    assert(res)
+  }
+
+  test("Don't call onTrue again when a boolean signal becomes true") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
+
+    val s = Signal[Boolean]()
+    var res = 0
+    s.onTrue.foreach { _ => res += 1 }
+
+    assertEquals(res, 0)
+
+    s ! false
+
+    assert(waitForResult(s, false))
+    assertEquals(res, 0)
+
+    s ! true
+
+    assert(waitForResult(s, true))
+    assertEquals(res, 1)
+
+    s ! false
+
+    assert(waitForResult(s, false))
+    assertEquals(res, 1)
+
+    s ! true
+
+    assert(waitForResult(s, true))
+    assertEquals(res, 1)
+  }
+
+  test("Call onFalse when a boolean signal becomes false for the first time") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
+
+    val s = Signal[Boolean]()
+    var res = true
+    s.onFalse.foreach { _ => res = false }
+
+    assert(res)
+
+    s ! true
+
+    assert(waitForResult(s, true))
+    assert(res)
+
+    s ! false
+
+    assert(waitForResult(s, false))
+    assert(!res)
+  }
+
+  test("Don't call onFalse again when a boolean signal becomes false") {
+    implicit val defaultContext: DispatchQueue = Threading.defaultContext
+
+    val s = Signal[Boolean]()
+    var res = 0
+    s.onFalse.foreach { _ => res += 1 }
+
+    assertEquals(res, 0)
+
+    s ! true
+
+    assert(waitForResult(s, true))
+    assertEquals(res, 0)
+
+    s ! false
+
+    assert(waitForResult(s, false))
+    assertEquals(res, 1)
+
+    s ! true
+
+    assert(waitForResult(s, true))
+    assertEquals(res, 1)
+
+    s ! false
+
+    assert(waitForResult(s, false))
+    assertEquals(res, 1)
+  }
+
+
+  test("Collect one signal to another") {
+    implicit val timeout: FiniteDuration = 500.millis
+    val s1 = Signal(0)
+    val collected = s1.collect { case n if n % 2 == 0 => s"number: $n" }
+
+    assert(waitForResult(collected, "number: 0"))
+
+    s1 ! 1
+
+    assert(!waitForResult(collected, "number: 1"))
+
+    s1 ! 2
+
+    assert(waitForResult(collected, "number: 2"))
+
+    s1 ! 3
+
+    assert(!waitForResult(collected, "number: 3"))
+
+    s1 ! 4
+
+    assert(waitForResult(collected, "number: 4"))
   }
 }

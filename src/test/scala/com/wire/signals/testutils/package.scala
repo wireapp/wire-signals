@@ -8,7 +8,7 @@ import java.util.Random
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.annotation.tailrec
 import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 package object testutils {
   sealed trait Roughly[V] {
@@ -85,6 +85,21 @@ package object testutils {
     } catch {
       case t: Throwable => Failure(t)
     }
+
+  def waitForResult[V](signal: Signal[V], expected: V)(implicit timeout: FiniteDuration = DefaultTimeout): Boolean = {
+    val offset = System.currentTimeMillis()
+    while (System.currentTimeMillis() - offset < timeout.toMillis) {
+      Try(result(signal.head)) match {
+        case Success(obtained) if obtained == expected => return true
+        case Failure(_: TimeoutException) => return false
+        case Failure(ex) =>
+          println(s"waitForResult failed waiting for $expected, with exception: ${ex.getMessage} (${ex.getClass.getCanonicalName})")
+        case _ =>
+      }
+      Thread.sleep(100)
+    }
+    false
+  }
 
   /**
     * Very useful for checking that something DOESN'T happen (e.g., ensure that a signal doesn't get updated after

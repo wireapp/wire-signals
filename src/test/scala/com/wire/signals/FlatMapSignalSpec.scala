@@ -46,10 +46,42 @@ class FlatMapSignalSpec extends munit.FunSuite {
     assertEquals(received, Vector(1, 2, 4))
   }
 
+  test("Normal flattening") {
+    val s = Signal(0)
+    val s1 = Signal(1)
+    val s2 = Signal(2)
+
+    val fm = s.map { Seq(s1, s2) }.flatten
+    fm(capture)
+
+    assertEquals(fm.value, Some(1))
+    s ! 1
+    assertEquals(fm.value, Some(2))
+    s1 ! 3
+    assertEquals(fm.value, Some(2))
+    s2 ! 4
+    assertEquals(fm.value, Some(4))
+    assertEquals(received, Vector(1, 2, 4))
+  }
+
   test("Chained flatmapping") {
     val s = Seq.fill(6)(Signal(0))
 
     val fm = s(0).flatMap { Seq(s(1), s(2)) }.flatMap { Seq(s(3), s(4), s(5)) }
+    fm(capture)
+
+    s(5) ! 5
+    s(2) ! 2
+    s(0) ! 1
+
+    assertEquals(fm.value, Some(5))
+    assertEquals(received, Vector(0, 5))
+  }
+
+  test("Chained flattening") {
+    val s = Seq.fill(6)(Signal(0))
+
+    val fm = s(0).map { Seq(s(1), s(2)) }.flatten.flatMap { Seq(s(3), s(4), s(5)) }
     fm(capture)
 
     s(5) ! 5

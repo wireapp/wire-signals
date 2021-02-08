@@ -96,5 +96,4 @@ class MapSignalSpec extends munit.FunSuite {
     o.destroy()
     assert(!s.wired)
   }
-
 }
