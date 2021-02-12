@@ -150,6 +150,23 @@ object Signal {
   def zip[A, B, C, D, E, F](s1: Signal[A], s2: Signal[B], s3: Signal[C], s4: Signal[D], s5: Signal[E], s6: Signal[F]): Signal[(A, B, C, D, E, F)] =
     new Zip6Signal(s1, s2, s3, s4, s5, s6)
 
+  /** A generalization of the `orElse` method where the fallback (left) signal can have another value type.
+    * If the value of the main (right) signal is `R` and the value of the fallback (left) signal is `L`, the new signal will return
+    * an `Either[L, R]`. When the right signal is set, the value of the new signal will be `Right(r)`. When the right
+    * signal becomes empty, the value of the new signal will temporarily switch to `Left(l)` where `l` is the current value
+    * of the left signal. The moment the parent signal is set to a new value again, the new signal will switch back to
+    * `Right(r)`.
+    * Only when both signals are empty, the new signal will become empty too.
+    *
+    * @param left The signal providing the left value for the resulting signal. It works as a fallback if the right one is empty.
+    * @param right The signal providing the right value. This is the main signal. It has a priority over `left`.
+    * @tparam L The value type of the fallback (left) signal.
+    * @tparam R The value type of the main (right) signal.
+    * @return A new signal with the value being either the value of the main or the value of the fallback signal if the main is empty.
+    */
+  def either[L, R](left: Signal[L], right: Signal[R]): Signal[Either[L, R]] =
+    right.map(Right(_): Either[L, R]).orElse(left.map(Left.apply))
+
   /** A utility method for creating a [[ThrottledSignal]] with the value of the given type and updated no more often than once
     * during the given time interval. If changes to the value of the parent signal happen more often, some of them will be ignored.
     *
@@ -589,7 +606,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     * @return A new signal with the value being either the value of the parent or the value of the fallback signal if
     *         the parent is empty.
     */
-  final def either[Z](fallback: Signal[Z]): Signal[Either[Z, V]] = map(Right(_): Either[Z, V]).orElse(fallback.map(Left.apply))
+  @inline final def either[Z](fallback: Signal[Z]): Signal[Either[Z, V]] = Signal.either(fallback, this)
 
   /** A shorthand for registering a subscriber function in this signal which only purpose is to publish changes to the value
     * of this signal in another [[SourceSignal]]. The subscriber function will be called in the execution context of the

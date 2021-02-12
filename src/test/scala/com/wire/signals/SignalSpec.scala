@@ -608,4 +608,146 @@ class SignalSpec extends munit.FunSuite {
 
     assert(waitForResult(collected, "number: 4"))
   }
+
+  test("Combining two signals") {
+    val signalA = Signal(1)
+    val signalB = Signal(true)
+    val chain = signalA.combine(signalB) { case (n, b) => s"$n:$b" }
+    assert(waitForResult(chain, "1:true"))
+
+    signalA ! 2
+
+    assert(waitForResult(chain, "2:true"))
+
+    signalB ! false
+
+    assert(waitForResult(chain, "2:false"))
+
+    signalB ! true
+
+    assert(waitForResult(chain, "2:true"))
+
+    signalA ! 42
+    signalB ! false
+
+    assert(waitForResult(chain, "42:false"))
+  }
+
+  test("Fallback to another signal if the original one is empty") {
+    val s1 = Signal[Int]()
+    val s2 = Signal[Int](2)
+
+    val res = s1.orElse(s2)
+
+    assert(waitForResult(res, 2))
+
+    s1 ! 1
+
+    assert(waitForResult(res, 1))
+  }
+
+  test("Fallback to another signal if the original one switch empty") {
+    val s1 = Signal[Boolean](true)
+    val s2 = Signal[Int](2)
+    val s3 = s1.flatMap {
+      case true  => Signal.const(1)
+      case false => Signal.empty[Int]
+    }
+
+    val res = s3.orElse(s2)
+
+    assert(waitForResult(res, 1))
+
+    s1 ! false
+
+    assert(waitForResult(res, 2))
+
+    s2 ! 3
+
+    assert(waitForResult(res, 3))
+
+    s1 ! true
+
+    assert(waitForResult(res, 1))
+
+    s2 ! 4
+
+    assert(waitForResult(res, 1))
+  }
+
+  test("Fallback to a signal of another type if the original one is empty") {
+    val s1 = Signal[Int]()
+    val s2 = Signal[String]("a")
+
+    val res = s1.either(s2)
+
+    assert(waitForResult(res, Left("a")))
+
+    s1 ! 1
+
+    assert(waitForResult(res, Right(1)))
+  }
+
+  test("Fallback to a signal of another type if the original one switch empty") {
+    val s1 = Signal[Boolean](true)
+    val s2 = Signal[String]("a")
+    val s3 = s1.flatMap {
+      case true  => Signal.const(1)
+      case false => Signal.empty[Int]
+    }
+
+    val res = s3.either(s2)
+
+    assert(waitForResult(res, Right(1)))
+
+    s1 ! false
+
+    assert(waitForResult(res, Left("a")))
+
+    s2 ! "b"
+
+    assert(waitForResult(res, Left("b")))
+
+    s1 ! true
+
+    assert(waitForResult(res, Right(1)))
+
+    s2 ! "c"
+
+    assert(waitForResult(res, Right(1)))
+  }
+
+  test("Pipe events from one signal to another") {
+    val s1 = Signal(1)
+    val s2 = Signal[Int]()
+
+    s1.pipeTo(s2)
+
+    assert(waitForResult(s2, 1))
+
+    s2 ! 2
+
+    assert(waitForResult(s2, 2))
+
+    s1 ! 3
+
+    assert(waitForResult(s2, 3))
+  }
+
+  test("Pipe events from one signal to another with the operator |") {
+    val s1 = Signal(1)
+    val s2 = Signal[Int]()
+
+    s1 | s2
+
+    assert(waitForResult(s2, 1))
+
+    s2 ! 2
+
+    assert(waitForResult(s2, 2))
+
+    s1 ! 3
+
+    assert(waitForResult(s2, 3))
+  }
 }
