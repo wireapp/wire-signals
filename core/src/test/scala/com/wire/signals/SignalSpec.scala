@@ -586,27 +586,26 @@ class SignalSpec extends munit.FunSuite {
 
 
   test("Collect one signal to another") {
-    implicit val timeout: FiniteDuration = 500.millis
     val s1 = Signal(0)
     val collected = s1.collect { case n if n % 2 == 0 => s"number: $n" }
 
-    assert(waitForResult(collected, "number: 0"))
+    assert(waitForResult(collected, "number: 0", 500.millis))
 
     s1 ! 1
 
-    assert(!waitForResult(collected, "number: 1"))
+    assert(!waitForResult(collected, "number: 1", 500.millis))
 
     s1 ! 2
 
-    assert(waitForResult(collected, "number: 2"))
+    assert(waitForResult(collected, "number: 2", 500.millis))
 
     s1 ! 3
 
-    assert(!waitForResult(collected, "number: 3"))
+    assert(!waitForResult(collected, "number: 3", 500.millis))
 
     s1 ! 4
 
-    assert(waitForResult(collected, "number: 4"))
+    assert(waitForResult(collected, "number: 4", 500.millis))
   }
 
   test("Combining two signals") {
