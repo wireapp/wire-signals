@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <profile name="sbt 1" modules="core_7760" />
+    <profile name="sbt 2" modules="wire-signals">
+      <option name="deprecationWarnings" value="true" />
+      <option name="uncheckedWarnings" value="true" />
+      <option name="featureWarnings" value="true" />
+      <parameters>
+        <parameter value="-encoding" />
+        <parameter value="utf8" />
+        <parameter value="-opt:unreachable-code" />
+        <parameter value="-opt:simplify-jumps" />
+        <parameter value="-opt:compact-locals" />
+        <parameter value="-opt:copy-propagation" />
+        <parameter value="-opt:redundant-casts" />
+        <parameter value="-opt:box-unbox" />
+        <parameter value="-opt:nullness-tracking" />
+        <parameter value="-opt:closure-invocations" />
+        <parameter value="-opt:allow-skip-core-module-init" />
+        <parameter value="-opt:assume-modules-non-null" />
+        <parameter value="-opt:allow-skip-class-loading" />
+        <parameter value="-opt:inline" />
+      </parameters>
+    </profile>
+  </component>
+</project>

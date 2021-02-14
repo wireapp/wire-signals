@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="sbt: org.scalameta:junit-interface:0.7.21:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.var/app/com.jetbrains.IntelliJ-IDEA-Community/cache/coursier/v1/https/repo1.maven.org/maven2/org/scalameta/junit-interface/0.7.21/junit-interface-0.7.21.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.var/app/com.jetbrains.IntelliJ-IDEA-Community/cache/coursier/v1/https/repo1.maven.org/maven2/org/scalameta/junit-interface/0.7.21/junit-interface-0.7.21-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.var/app/com.jetbrains.IntelliJ-IDEA-Community/cache/coursier/v1/https/repo1.maven.org/maven2/org/scalameta/junit-interface/0.7.21/junit-interface-0.7.21-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
