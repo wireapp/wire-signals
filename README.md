@@ -10,9 +10,11 @@ This project is an attempt to migrate all that functionality into a separate lib
 #### How to use
 To include `wire-signals` in your project, add this to your library dependencies in sbt:
 ```
-libraryDependencies += "com.wire" %% "wire-signals" % "0.3.2"
+libraryDependencies += "com.wire" %% "wire-signals" % "0.4.0"
 ```
 Currently `wire-signals` work with Scala 2.11 (because Android), 2.12, and 2.13.
+
+Similarly, you can add `wire-signals-extensions` to get some additional functionality. The reason for splitting the library into two is that the core library is enough to perform the main task of event streams and signals, which is to transport events across the app. For some users this might be all they need and so they will be interested more in lack of additional dependencies, small codebase, and performance. The core library is dependent in production only on the standard Scala library.
 
 
 In short, you can create a `SourceSignal` somewhere in the code:
