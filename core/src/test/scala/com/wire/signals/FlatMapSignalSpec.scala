@@ -34,7 +34,7 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s2 = Signal(2)
 
     val fm = s.flatMap { Seq(s1, s2) }
-    fm(capture)
+    fm.onCurrent(capture)
 
     assertEquals(fm.value, Some(1))
     s ! 1
@@ -52,7 +52,7 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s2 = Signal(2)
 
     val fm = s.map { Seq(s1, s2) }.flatten
-    fm(capture)
+    fm.onCurrent(capture)
 
     assertEquals(fm.value, Some(1))
     s ! 1
@@ -68,7 +68,7 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s = Seq.fill(6)(Signal(0))
 
     val fm = s(0).flatMap { Seq(s(1), s(2)) }.flatMap { Seq(s(3), s(4), s(5)) }
-    fm(capture)
+    fm.onCurrent(capture)
 
     s(5) ! 5
     s(2) ! 2
@@ -82,7 +82,7 @@ class FlatMapSignalSpec extends munit.FunSuite {
     val s = Seq.fill(6)(Signal(0))
 
     val fm = s(0).map { Seq(s(1), s(2)) }.flatten.flatMap { Seq(s(3), s(4), s(5)) }
-    fm(capture)
+    fm.onCurrent(capture)
 
     s(5) ! 5
     s(2) ! 2

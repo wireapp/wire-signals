@@ -18,12 +18,17 @@
 package com.wire.signals
 
 import com.wire.signals.EventStream.EventSubscriber
+import com.wire.signals.EventStreamWithAuxSignal.DoNothingSignalSubscriber
 import com.wire.signals.Signal.SignalSubscriber
 
 import scala.concurrent.ExecutionContext
 
 object EventStreamWithAuxSignal {
   def apply[A, B](source: EventStream[A], aux: Signal[B]): EventStreamWithAuxSignal[A, B] = new EventStreamWithAuxSignal(source, aux)
+
+  final class DoNothingSignalSubscriber extends SignalSubscriber {
+    override def changed(currentContext: Option[ExecutionContext]): Unit = ()
+  }
 }
 
 /** An event stream coupled with an auxiliary signal.
@@ -58,7 +63,7 @@ class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) ext
     }
   }
 
-  protected[this] lazy val auxSubscriber: SignalSubscriber = SignalSubscriber()
+  protected[this] lazy val auxSubscriber: SignalSubscriber = new DoNothingSignalSubscriber()
 
   override protected def onWire(): Unit = {
     source.subscribe(subscriber)
@@ -70,4 +75,3 @@ class EventStreamWithAuxSignal[A, B](source: EventStream[A], aux: Signal[B]) ext
     aux.unsubscribe(auxSubscriber)
   }
 }
-

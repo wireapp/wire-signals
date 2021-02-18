@@ -29,7 +29,7 @@ class PartialUpdateSignalSpec extends munit.FunSuite {
     val original = Signal(Data(0, 0))
 
     var updates = Seq.empty[Data]
-    original.onPartialUpdate(_.value1) { d =>
+    original.onPartialUpdate(_.value1).onCurrent { d =>
       updates = updates :+ d
     }
 
@@ -51,13 +51,13 @@ class PartialUpdateSignalSpec extends munit.FunSuite {
   test("New subscribers get latest value even if the select doesn't match") {
     val original = Signal(Data(0, 0))
 
-    original.onPartialUpdate(_.value1) { d =>
+    original.onPartialUpdate(_.value1).onCurrent { d =>
       assertEquals(d, Data(0, 0))
     }
 
     original ! Data(0, 1)
 
-    original.onPartialUpdate(_.value1) { d =>
+    original.onPartialUpdate(_.value1).onCurrent { d =>
       assertEquals(d, Data(0, 1))
     }
   }

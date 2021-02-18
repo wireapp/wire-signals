@@ -26,6 +26,11 @@ import scala.ref.WeakReference
 import scala.util.{Failure, Success, Try}
 
 object EventStream {
+  private[signals] trait EventSubscriber[E] {
+    // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
+    protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit
+  }
+
   final private class EventStreamSubscription[E](source:           EventStream[E],
                                                  subscriber:       Subscriber[E],
                                                  executionContext: Option[ExecutionContext] = None
@@ -42,11 +47,6 @@ object EventStream {
     override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
 
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
-  }
-
-  private[signals] trait EventSubscriber[E] {
-    // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
-    protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit
   }
 
   /** Creates a new [[SourceStream]] of events of the type `E`. A usual entry point for the event streams network.
@@ -135,7 +135,7 @@ object EventStream {
   * @see [[Subscription.Subscriber]]
   * @see [[scala.concurrent.ExecutionContext]]
   */
-class EventStream[E] protected () extends EventSource[E] with Subscribable[EventSubscriber[E]] {
+class EventStream[E] protected () extends EventRelay[E, EventSubscriber[E]] {
 
   /** Dispatches the event to all subscribers.
     *
@@ -158,7 +158,7 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     * be provided by the user for managing the subscription instead of doing it manually. When an event is published in
     * the event stream, the subscriber function will be called in the given execution context instead of the one of the publisher.
     *
-    * @see [[EventSource]]
+    * @see [[EventRelay]]
     *
     * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
     * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
@@ -173,14 +173,14 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
   /** Registers a subscriber which will always be called in the same execution context in which the event was published.
     * An optional event context can be provided by the user for managing the subscription instead of doing it manually.
     *
-    * @see [[EventSource]]
+    * @see [[EventRelay]]
     *
     * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
     * @return A [[Subscription]] representing the created connection between the event stream and the [[Subscription.Subscriber]]
     */
-  override def apply(subscriber: Subscriber[E])
-                    (implicit eventContext: EventContext = EventContext.Global): Subscription =
+  override def onCurrent(subscriber: Subscriber[E])
+                        (implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new EventStreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
   /** Creates a new `EventStream[V]` by mapping events of the type `E` emitted by the original one.
@@ -263,7 +263,7 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     * @param ec An [[EventContext]] which can be used to manage the subscription (optional).
     * @return A new [[Subscription]] to this event stream.
     */
-  final def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = apply(sourceStream ! _)
+  final def pipeTo(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = onCurrent(sourceStream ! _)
 
   /** An alias for `pipeTo`. */
   @inline final def |(sourceStream: SourceStream[E])(implicit ec: EventContext = EventContext.Global): Subscription = pipeTo(sourceStream)
@@ -277,7 +277,7 @@ class EventStream[E] protected () extends EventSource[E] with Subscribable[Event
     */
   final def next(implicit context: EventContext = EventContext.Global): CancellableFuture[E] = {
     val p = Promise[E]()
-    val o = apply { p.trySuccess }
+    val o = onCurrent { p.trySuccess }
     p.future.onComplete(_ => o.destroy())(Threading.defaultContext)
     new CancellableFuture(p)
   }

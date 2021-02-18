@@ -43,7 +43,7 @@ object EventContext {
   }
 }
 
-/** When you subscribe to an [[EventSource]] in return you receive a [[Subscription]]. You can use that subscription
+/** When you subscribe to an [[EventRelay]] in return you receive a [[Subscription]]. You can use that subscription
   * to unsubscribe from the event source or to temporarily pause receiving events. But managing a big number of
   * subscriptions to different event sources can be tricky. [[EventContext]] comes to the rescue.
   *
@@ -56,7 +56,7 @@ object EventContext {
   * Usage of methods in the trait are explained as they are implemented in the default implementation.
   * All operations on an [[EventContext]] are synchronized.
   *
-  * @see [[EventSource]]
+  * @see [[EventRelay]]
   */
 trait EventContext {
   /** An[[EventContext]] has to be started before it can register subscriptions.

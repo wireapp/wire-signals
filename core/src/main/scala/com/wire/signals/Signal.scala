@@ -26,6 +26,11 @@ import scala.ref.WeakReference
 import scala.util.Try
 
 object Signal {
+  private[signals] trait SignalSubscriber {
+    // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
+    protected[signals] def changed(currentContext: Option[ExecutionContext]): Unit
+  }
+
   final private class SignalSubscription[V](source:           Signal[V],
                                            subscriber:       Subscriber[V],
                                            executionContext: Option[ExecutionContext] = None
@@ -48,19 +53,6 @@ object Signal {
     }
 
     override protected[signals] def onUnsubscribe(): Unit = source.unsubscribe(this)
-  }
-
-  private[signals] trait SignalSubscriber {
-    // 'currentContext' is the context this method IS run in, NOT the context any subsequent methods SHOULD run in
-    def changed(currentContext: Option[ExecutionContext]): Unit
-  }
-
-  private[signals] object SignalSubscriber {
-    def apply(): SignalSubscriber = new DoNothingSignalSubscriber()
-
-    final class DoNothingSignalSubscriber extends SignalSubscriber {
-      override def changed(currentContext: Option[ExecutionContext]): Unit = ()
-    }
   }
 
   final private val Empty = new ConstSignal[Any](None)
@@ -303,8 +295,7 @@ object Signal {
   * @param value The option of the last value published in the signal or `None` if the signal was not initialized yet.
   * @tparam V The type of the value held in the signal.
   */
-class Signal[V] protected (@volatile protected[signals] var value: Option[V] = None)
-  extends EventSource[V] with Subscribable[SignalSubscriber] { self =>
+class Signal[V] protected (@volatile protected[signals] var value: Option[V] = None) extends EventRelay[V, SignalSubscriber] { self =>
   private object updateMonitor
 
   /** Updates the current value of the signal by applying a given function to it.
@@ -617,7 +608,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     * @param ec An [[EventContext]] which can be used to manage the subscription (optional).
     * @return A new [[Subscription]] to this signal.
     */
-  final def pipeTo(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Subscription = apply(sourceSignal ! _)
+  final def pipeTo(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Subscription = onCurrent(sourceSignal ! _)
 
   /** An alias for `pipeTo`. */
   @inline final def |(sourceSignal: SourceSignal[V])(implicit ec: EventContext = EventContext.Global): Subscription = pipeTo(sourceSignal)
@@ -665,7 +656,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     * be provided by the user for managing the subscription instead of doing it manually. When the value of the signal changes,
     * the subscriber function will be called in the given execution context instead of the one of the publisher.
     *
-    * @see [[EventSource]]
+    * @see [[EventRelay]]
     *
     * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
     * @param subscriber [[Subscription.Subscriber]] - a function which is called initially, when registered in the signal,
@@ -679,13 +670,13 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
   /** Registers a subscriber which will always be called in the same execution context in which the value of the signal was changed.
     * An optional event context can be provided by the user for managing the subscription instead of doing it manually.
     *
-    * @see [[EventSource]]
+    * @see [[EventRelay]]
     * @param subscriber [[Subscription.Subscriber]] - a function which is called initially, when registered in the signal,
     *                   and then every time the value of the signal changes.
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
     * @return A [[Subscription]] representing the created connection between the signal and the [[Subscription.Subscriber]]
     */
-  override def apply(subscriber: Subscriber[V])(implicit eventContext: EventContext = EventContext.Global): Subscription =
+  override def onCurrent(subscriber: Subscriber[V])(implicit eventContext: EventContext = EventContext.Global): Subscription =
     returning(new SignalSubscription[V](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
 
   /** Sets the value of the signal to the given value. Notifies the subscribers if the value actually changes.
@@ -708,7 +699,7 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
 /** By default, a new signal is initialized lazily, i.e. only when the first subscriber function is registered in it.
   * You can decorate it with `NoAutowiring` to enforce initialization.
   *
-  * @see [[Subscribable]]
+  * @see [[EventRelay]]
   */
 trait NoAutowiring { self: Signal[_] =>
   disableAutowiring()
@@ -818,7 +809,7 @@ final private[signals] class PartialUpdateSignal[V, Z](source: Signal[V])(select
 }
 
 final private[signals] class EventStreamSignal[V](source: EventStream[V], v: Option[V] = None) extends Signal[V](v) {
-  private[this] lazy val subscription = source(publish)(EventContext.Global)
+  private[this] lazy val subscription = source.onCurrent(publish)(EventContext.Global)
 
   override protected def onWire(): Unit = subscription.enable()
   override protected def onUnwire(): Unit = subscription.disable()

@@ -22,7 +22,7 @@ package object testutils {
   class SignalSink[A] {
     @volatile private var sub = Option.empty[Subscription]
 
-    def subscribe(s: Signal[A])(implicit ctx: EventContext = EventContext.Global): Unit = sub = Some(s(v => value = Some(v)))
+    def subscribe(s: Signal[A])(implicit ctx: EventContext = EventContext.Global): Unit = sub = Some(s.onCurrent(v => value = Some(v)))
 
     def unsubscribe(): Unit = sub.foreach { s =>
       s.destroy()
