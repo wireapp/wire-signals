@@ -70,7 +70,7 @@ package object testutils {
   def waitForResult[V](signal: Signal[V], expected: V, timeout: FiniteDuration): Boolean = {
     val offset = System.currentTimeMillis()
     while (System.currentTimeMillis() - offset < timeout.toMillis) {
-      Try(result(signal.head)) match {
+      Try(result(signal.head)(timeout)) match {
         case Success(obtained) if obtained == expected => return true
         case Failure(_: TimeoutException) => return false
         case Failure(ex) =>
@@ -89,7 +89,7 @@ package object testutils {
   def waitForResult[E](stream: EventStream[E], expected: E, timeout: FiniteDuration): Boolean = {
     val offset = System.currentTimeMillis()
     while (System.currentTimeMillis() - offset < timeout.toMillis) {
-      Try(result(stream.next)) match {
+      Try(result(stream.next)(timeout)) match {
         case Success(obtained) if obtained == expected => return true
         case Failure(_: TimeoutException) => return false
         case Failure(ex) =>
