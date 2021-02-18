@@ -19,14 +19,6 @@ package com.wire.signals
 
 import scala.ref.WeakReference
 
-object Subscription {
-  /** A function type of any function which can consume events.
-    *
-    * @tparam E The type of the event, emitted by an [[EventRelay]] and consumed by the subscriber.
-    */
-  type Subscriber[-E] = E => Unit
-}
-
 /** When you add a new subscriber to your [[EventStream]] or [[Signal]], in return you get a [[Subscription]].
   * A subscription can then be used to inform the source about changes in the condition of the connection:
   * should it be enabled or disabled, should the subscriber be subscribed or (temporarily) unsubscribed,

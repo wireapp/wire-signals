@@ -1,7 +1,5 @@
 package com.wire.signals
 
-import com.wire.signals.Subscription.Subscriber
-
 import scala.concurrent.ExecutionContext
 
 trait EventRelay[E, S] {
@@ -19,7 +17,7 @@ trait EventRelay[E, S] {
     */
   protected def onUnwire(): Unit
 
-  /** Creates a [[Subscription]] to a [[Subscription.Subscriber]] which will consume events in the given `ExecutionContext`.
+  /** Creates a [[Subscription]] to a function which will consume events in the given `ExecutionContext`.
     * In simpler terms: A subscriber is a function which will receive events from the event source. For every event,
     * the function will be executed in the given execution context - not necessarily the same as the one used for
     * emitting the event. This allows for easy communication between parts of the program working in different
@@ -27,32 +25,32 @@ trait EventRelay[E, S] {
     *
     * The [[Subscription]] will be automatically enabled ([[Subscription.enable]]).
     *
-    * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
-    * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
+    * @param ec An `ExecutionContext` in which the given function will be executed.
+    * @param body A function which consumes the event
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return A [[Subscription]] representing the created connection between the event source and the [[Subscription.Subscriber]]
+    * @return A [[Subscription]] representing the created connection between the event source and the body function.
     */
-  def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit eventContext: EventContext = EventContext.Global): Subscription
+  def on(ec: ExecutionContext)(body: E => Unit)(implicit eventContext: EventContext = EventContext.Global): Subscription
 
 
-  /** Creates a [[Subscription]] to a [[Subscription.Subscriber]] which will consume events in the same `ExecutionContext` as
+  /** Creates a [[Subscription]] to a function which will consume events in the same `ExecutionContext` as
     * the one in which the events are being emitted.
     *
     * @see [[EventRelay.on]]
     *
     * The [[Subscription]] will be automatically enabled ([[Subscription.enable]]).
     *
-    * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
+    * @param body A function which consumes the event
     * @param eventContext an [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return a [[Subscription]] representing the created connection between the [[EventRelay]] and the [[Subscription.Subscriber]]
+    * @return a [[Subscription]] representing the created connection between the [[EventRelay]] and the body function
     */
-  def onCurrent(subscriber: Subscriber[E])(implicit eventContext: EventContext = EventContext.Global): Subscription
+  def onCurrent(body: E => Unit)(implicit eventContext: EventContext = EventContext.Global): Subscription
 
   /** An alias for the `on` method with the default [[scala.concurrent.ExecutionContext]]. */
-  @inline final def foreach(op: Subscriber[E])
+  @inline final def foreach(body: E => Unit)
                            (implicit executionContext: ExecutionContext = Threading.defaultContext,
                             eventContext: EventContext = EventContext.Global): Subscription =
-    on(executionContext)(op)(eventContext)
+    on(executionContext)(body)(eventContext)
 
   /** Adds a new subscriber instance. The implementing class should handle notifying this subscriber
     * when a new event arrives. If this is the first subscriber, and `disableAutowiring` wasn't called previous,
@@ -126,7 +124,7 @@ trait EventRelay[E, S] {
   *   subscription.unsubscribe()
   * }}}
   * here [[Subscription.unsubscribe]] will temporarily unsubscribe the subscription
-  * (i.e. the [[Subscription.Subscriber]] will stop receiving events until the consecutive call to [[Subscription.subscribe]])
+  * (i.e. the body function will stop receiving events until the consecutive call to [[Subscription.subscribe]])
   * but
   * {{{
   *   val eventStream = new SourceStream[Boolean] with ForcedEventRelay[Boolean, SignalSubscriber]
@@ -139,9 +137,9 @@ trait EventRelay[E, S] {
   */
 
 trait ForcedEventRelay[E, S] extends EventRelay[E, S] {
-  abstract override def on(ec: ExecutionContext)(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
-    returning(super.on(ec)(subscriber))(_.disablePauseWithContext())
+  abstract override def on(ec: ExecutionContext)(body: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription =
+    returning(super.on(ec)(body))(_.disablePauseWithContext())
 
-  abstract override def onCurrent(subscriber: Subscriber[E])(implicit context: EventContext = EventContext.Global): Subscription =
-    returning(super.onCurrent(subscriber))(_.disablePauseWithContext())
+  abstract override def onCurrent(body: E => Unit)(implicit context: EventContext = EventContext.Global): Subscription =
+    returning(super.onCurrent(body))(_.disablePauseWithContext())
 }

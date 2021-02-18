@@ -19,7 +19,6 @@ package com.wire.signals
 
 import com.wire.signals.EventStream.{EventStreamSubscription, EventSubscriber}
 import com.wire.signals.Signal.SignalSubscriber
-import com.wire.signals.Subscription.Subscriber
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.ref.WeakReference
@@ -31,17 +30,17 @@ object EventStream {
     protected[signals] def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit
   }
 
-  final private class EventStreamSubscription[E](source:           EventStream[E],
-                                                 subscriber:       Subscriber[E],
-                                                 executionContext: Option[ExecutionContext] = None
+  final private class EventStreamSubscription[E](source:            EventStream[E],
+                                                 f:                 E => Unit,
+                                                 executionContext:  Option[ExecutionContext] = None
                                                 )(implicit context: WeakReference[EventContext])
     extends BaseSubscription(context) with EventSubscriber[E] {
 
     override def onEvent(event: E, currentContext: Option[ExecutionContext]): Unit =
       if (subscribed)
         executionContext match {
-          case Some(ec) if !currentContext.contains(ec) => Future(if (subscribed) Try(subscriber(event)))(ec)
-          case _ => subscriber(event)
+          case Some(ec) if !currentContext.contains(ec) => Future(if (subscribed) Try(f(event)))(ec)
+          case _ => f(event)
         }
 
     override protected[signals] def onSubscribe(): Unit = source.subscribe(this)
@@ -132,7 +131,6 @@ object EventStream {
   * receive an event in one execution context, but the function which consumes it is registered with another execution context
   * specified. In that case the function won't be called immediately, but in a future executed in that execution context.
   *
-  * @see [[Subscription.Subscriber]]
   * @see [[scala.concurrent.ExecutionContext]]
   */
 class EventStream[E] protected () extends EventRelay[E, EventSubscriber[E]] {
@@ -160,28 +158,28 @@ class EventStream[E] protected () extends EventRelay[E, EventSubscriber[E]] {
     *
     * @see [[EventRelay]]
     *
-    * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
-    * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
+    * @param ec An `ExecutionContext` in which the body function will be executed.
+    * @param body A function which consumes the event
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return A [[Subscription]] representing the created connection between the event stream and the [[Subscription.Subscriber]]
+    * @return A [[Subscription]] representing the created connection between the event stream and the body function
     */
   override def on(ec: ExecutionContext)
-                 (subscriber: Subscriber[E])
+                 (body: E => Unit)
                  (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new EventStreamSubscription[E](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+    returning(new EventStreamSubscription[E](this, body, Some(ec))(WeakReference(eventContext)))(_.enable())
 
   /** Registers a subscriber which will always be called in the same execution context in which the event was published.
     * An optional event context can be provided by the user for managing the subscription instead of doing it manually.
     *
     * @see [[EventRelay]]
     *
-    * @param subscriber [[Subscription.Subscriber]] - a function which consumes the event
+    * @param body A function which consumes the event
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return A [[Subscription]] representing the created connection between the event stream and the [[Subscription.Subscriber]]
+    * @return A [[Subscription]] representing the created connection between the event stream and the body function
     */
-  override def onCurrent(subscriber: Subscriber[E])
+  override def onCurrent(body: E => Unit)
                         (implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new EventStreamSubscription[E](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+    returning(new EventStreamSubscription[E](this, body, None)(WeakReference(eventContext)))(_.enable())
 
   /** Creates a new `EventStream[V]` by mapping events of the type `E` emitted by the original one.
     *
@@ -210,7 +208,6 @@ class EventStream[E] protected () extends EventRelay[E, EventSubscriber[E]] {
     *          finishes before the processing for the first one.
     * @tparam V The type of the resulting event.
     * @return A new event stream of type `V`.
-    * @fixme Sometimes the order is changed if the future returned by `f` is already completed for some cases, and not others.
     */
   final def mapAsync[V](f: E => Future[V]): EventStream[V] = new FutureEventStream[E, V](this, f)
 

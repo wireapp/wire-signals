@@ -18,7 +18,6 @@
 package com.wire.signals
 
 import com.wire.signals.Signal.{SignalSubscriber, SignalSubscription}
-import com.wire.signals.Subscription.Subscriber
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -32,8 +31,8 @@ object Signal {
   }
 
   final private class SignalSubscription[V](source:           Signal[V],
-                                           subscriber:       Subscriber[V],
-                                           executionContext: Option[ExecutionContext] = None
+                                            f:                V => Unit,
+                                            executionContext: Option[ExecutionContext] = None
                                           )(implicit context: WeakReference[EventContext])
     extends BaseSubscription(context) with SignalSubscriber {
 
@@ -41,8 +40,8 @@ object Signal {
       source.value.foreach { event =>
         if (subscribed)
           executionContext match {
-            case Some(ec) if !currentContext.contains(ec) => Future(if (subscribed) Try(subscriber(event)))(ec)
-            case _ => subscriber(event)
+            case Some(ec) if !currentContext.contains(ec) => Future(if (subscribed) Try(f(event)))(ec)
+            case _ => f(event)
           }
       }
     }
@@ -658,26 +657,26 @@ class Signal[V] protected (@volatile protected[signals] var value: Option[V] = N
     *
     * @see [[EventRelay]]
     *
-    * @param ec An `ExecutionContext` in which the [[Subscription.Subscriber]] function will be executed.
-    * @param subscriber [[Subscription.Subscriber]] - a function which is called initially, when registered in the signal,
-    *                   and then every time the value of the signal changes.
+    * @param ec An `ExecutionContext` in which the body function will be executed.
+    * @param body A function which is called initially, when registered in the signal,
+    *             and then every time the value of the signal changes.
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return A [[Subscription]] representing the created connection between the signal and the [[Subscription.Subscriber]]
+    * @return A [[Subscription]] representing the created connection between the signal and the body function
     */
-  override def on(ec: ExecutionContext)(subscriber: Subscriber[V])(implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new SignalSubscription[V](this, subscriber, Some(ec))(WeakReference(eventContext)))(_.enable())
+  override def on(ec: ExecutionContext)(body: V => Unit)(implicit eventContext: EventContext = EventContext.Global): Subscription =
+    returning(new SignalSubscription[V](this, body, Some(ec))(WeakReference(eventContext)))(_.enable())
 
   /** Registers a subscriber which will always be called in the same execution context in which the value of the signal was changed.
     * An optional event context can be provided by the user for managing the subscription instead of doing it manually.
     *
     * @see [[EventRelay]]
-    * @param subscriber [[Subscription.Subscriber]] - a function which is called initially, when registered in the signal,
-    *                   and then every time the value of the signal changes.
+    * @param body A function which is called initially, when registered in the signal,
+    *             and then every time the value of the signal changes.
     * @param eventContext An [[EventContext]] which will register the [[Subscription]] for further management (optional)
-    * @return A [[Subscription]] representing the created connection between the signal and the [[Subscription.Subscriber]]
+    * @return A [[Subscription]] representing the created connection between the signal and the body function
     */
-  override def onCurrent(subscriber: Subscriber[V])(implicit eventContext: EventContext = EventContext.Global): Subscription =
-    returning(new SignalSubscription[V](this, subscriber, None)(WeakReference(eventContext)))(_.enable())
+  override def onCurrent(body: V => Unit)(implicit eventContext: EventContext = EventContext.Global): Subscription =
+    returning(new SignalSubscription[V](this, body, None)(WeakReference(eventContext)))(_.enable())
 
   /** Sets the value of the signal to the given value. Notifies the subscribers if the value actually changes.
     *
