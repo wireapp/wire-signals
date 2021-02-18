@@ -30,7 +30,7 @@ class MapSignalSpec extends munit.FunSuite {
   test("Normal mapping") {
     val s = Signal(1)
     val m = s map (_ * 2)
-    m(capture)
+    m.onCurrent(capture)
 
     Seq(2, 3, 1) foreach (s ! _)
     assertEquals(received, Seq(2, 4, 6, 2))
@@ -57,7 +57,7 @@ class MapSignalSpec extends munit.FunSuite {
   test("Chained mapping") {
     val s = Signal(1)
     val m = s.map(_ * 2).map(_ * 3)
-    m(capture)
+    m.onCurrent(capture)
     Seq(2, 3, 1).foreach(s ! _)
     assertEquals(received, Seq(6, 12, 18, 6))
   }
@@ -65,7 +65,7 @@ class MapSignalSpec extends munit.FunSuite {
   test("No subscribers will be left behind") {
     val s = Signal(1)
     val f = s map (_ * 2)
-    val sub = f(capture)
+    val sub = f.onCurrent(capture)
     Seq(2, 3) foreach (s ! _)
     assert(s.hasSubscribers)
     assert(f.hasSubscribers)

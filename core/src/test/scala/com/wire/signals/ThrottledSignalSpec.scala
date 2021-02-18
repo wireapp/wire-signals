@@ -33,7 +33,7 @@ class ThrottledSignalSpec extends munit.FunSuite {
     100 times spying { spy =>
       val s = Signal(1)
       val m = s.throttle(2.millis)
-      m(spy.capture)
+      m.onCurrent(spy.capture)
       assertEquals(spy.received.get.map(_._1), Vector[Int](1))
 
       (2 to 3) foreach { v =>
@@ -54,7 +54,7 @@ class ThrottledSignalSpec extends munit.FunSuite {
     received.set(Vector.empty[(Int, Long)])
     val s = Signal[Int]()
     val m = s.throttle(50.millis)
-    m(capture)
+    m.onCurrent(capture)
 
     val updates = Future.sequence((1 to 10000).map(n => delayed(random.nextInt(500).millis) {
       s ! n
@@ -72,7 +72,7 @@ class ThrottledSignalSpec extends munit.FunSuite {
     val m = s.throttle(100.millis)
     assert(!m.wired)
 
-    val o = m { _ => () }
+    val o = m.onCurrent { _ => () }
     assert(m.wired)
 
     o.disable()

@@ -32,7 +32,7 @@ class EventStreamSpec extends munit.FunSuite {
     val a: SourceStream[Int] = EventStream()
     val b: SourceStream[Int] = EventStream()
 
-    val subscription = a.flatMap(_ => b) { _ => }
+    val subscription = a.flatMap(_ => b).onCurrent { _ => }
     a ! 1
 
     assert(b.hasSubscribers, "mapped event stream should have subscriber after element emitting from source event stream")
@@ -50,10 +50,8 @@ class EventStreamSpec extends munit.FunSuite {
 
     var flatMapCalledCount = 0
     var lastReceivedElement: Option[String] = None
-    val subscription = a.flatMap { _ =>
-      returning(if (flatMapCalledCount == 0) b else c) { _ => flatMapCalledCount += 1 }
-    } { elem => lastReceivedElement = Some(elem) }
-
+    val subscription = a.flatMap { _ => returning(if (flatMapCalledCount == 0) b else c) { _ => flatMapCalledCount += 1 } }
+                        .onCurrent { elem => lastReceivedElement = Some(elem) }
     a ! "a"
 
     assert(b.hasSubscribers, "mapped event stream 'b' should have subscriber after first element emitting from source event stream")
@@ -81,7 +79,7 @@ class EventStreamSpec extends munit.FunSuite {
     val promise = Promise[Int]()
     val resPromise = Promise[Int]()
 
-    EventStream.from(promise.future){ event =>
+    EventStream.from(promise.future).onCurrent { event =>
       assertEquals(event, 1)
       resPromise.success(event)
     }
@@ -95,7 +93,7 @@ class EventStreamSpec extends munit.FunSuite {
     val promise = Promise[Int]()
     val resPromise = Promise[Int]()
 
-    EventStream.from(promise.future) { event => resPromise.success(event) }
+    EventStream.from(promise.future).onCurrent { event => resPromise.success(event) }
 
     promise.failure(new IllegalArgumentException)
 
@@ -107,7 +105,7 @@ class EventStreamSpec extends munit.FunSuite {
     val t = System.currentTimeMillis()
     val stream = EventStream.from(CancellableFuture.delay(1 seconds))
 
-    stream { _ => promise.success(System.currentTimeMillis() - t) }
+    stream.onCurrent { _ => promise.success(System.currentTimeMillis() - t) }
 
     assert(result(promise.future) >= 1000L)
   }

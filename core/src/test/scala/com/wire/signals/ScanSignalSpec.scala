@@ -32,7 +32,7 @@ class ScanSignalSpec extends munit.FunSuite {
     val scanned = s.scan(0)(_ + _)
     assertEquals(result(scanned.future), 1)
 
-    scanned(capture)
+    scanned.onCurrent(capture)
     assertEquals(result(scanned.future), 1)
     assertEquals(received, Seq(1))
 
@@ -60,7 +60,7 @@ class ScanSignalSpec extends munit.FunSuite {
     val scanned = s.scan(0)(_ + _).scan(1)(_ * _)
     assertEquals(result(scanned.future), 1)
 
-    scanned(capture)
+    scanned.onCurrent(capture)
     Seq(2, 3, 1).foreach(s ! _)
 
     andThen()
@@ -72,7 +72,7 @@ class ScanSignalSpec extends munit.FunSuite {
   test("No subscribers will be left behind") {
     val s = Signal(1)
     val scanned = s.scan(0)(_ + _)
-    val sub = scanned(capture)
+    val sub = scanned.onCurrent(capture)
     Seq(2, 3) foreach (s ! _)
     assert(s.hasSubscribers)
     assert(scanned.hasSubscribers)

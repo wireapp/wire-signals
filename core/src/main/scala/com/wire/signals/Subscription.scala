@@ -22,7 +22,7 @@ import scala.ref.WeakReference
 object Subscription {
   /** A function type of any function which can consume events.
     *
-    * @tparam E The type of the event, emitted by an [[EventSource]] and consumed by the subscriber.
+    * @tparam E The type of the event, emitted by an [[EventRelay]] and consumed by the subscriber.
     */
   type Subscriber[-E] = E => Unit
 }
@@ -88,7 +88,7 @@ trait Subscription {
 
 /** Provides the default implementation of the [[Subscription]] trait.
   * Exposes two new abstract methods: `onSubscribe` and `onUnsubscribe`. A typical way to implement them is
-  * to have a reference to the source of events which implements the [[Subscribable]] trait and call `subscribe(this)`
+  * to have a reference to the source of events which implements the [[EventRelay]] trait and call `subscribe(this)`
   * on that source (where `this` is the subscription).
   *
   * For examples:

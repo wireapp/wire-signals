@@ -25,7 +25,7 @@ class EventStreamWithAuxSignalSpec extends munit.FunSuite {
   private var events = List.empty[(String, Option[Int])]
 
   test("Subscribe, send stuff, unsubscribe, send more stuff") {
-    val sub = r { r =>
+    val sub = r.onCurrent { r =>
       events = r :: events
     }(EventContext.Global)
 
