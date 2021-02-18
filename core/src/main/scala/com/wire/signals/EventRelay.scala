@@ -49,10 +49,9 @@ trait EventRelay[E, S] {
   def onCurrent(subscriber: Subscriber[E])(implicit eventContext: EventContext = EventContext.Global): Subscription
 
   /** An alias for the `on` method with the default [[scala.concurrent.ExecutionContext]]. */
-  final def foreach(op: Subscriber[E])
-                   (implicit executionContext: ExecutionContext = Threading.defaultContext,
-                    eventContext:     EventContext     = EventContext.Global
-                   ): Subscription =
+  @inline final def foreach(op: Subscriber[E])
+                           (implicit executionContext: ExecutionContext = Threading.defaultContext,
+                            eventContext: EventContext = EventContext.Global): Subscription =
     on(executionContext)(op)(eventContext)
 
   /** Adds a new subscriber instance. The implementing class should handle notifying this subscriber
@@ -131,7 +130,7 @@ trait EventRelay[E, S] {
   * but
   * {{{
   *   val eventStream = new SourceStream[Boolean] with ForcedEventRelay[Boolean, SignalSubscriber]
-  *   val subscription = eventStream { b => /* ... */ }
+  *   val subscription = eventStream.onCurrent { b => /* ... */ }
   *   subscription.unsubscribe()
   * }}}
   * here [[Subscription.unsubscribe]] will do nothing.
