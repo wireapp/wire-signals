@@ -56,5 +56,3 @@ If you want to know more about how we use it:
 * [An article on Medium.com](https://makingthematrix.medium.com/wire-signals-81918bbcc07f?source=friends_link&sk=948c6f03e507e6f0188737711511a4b0) - basically a transcript of the video above.
 * ... and a slightly outdated video about how we use it at Wire Android: [Scala on Wire](https://www.youtube.com/watch?v=dnsyd-h5piI)
 
-(more info coming soon)
-
